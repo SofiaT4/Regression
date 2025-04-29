@@ -329,35 +329,83 @@ def calculate_all_statistics(X_all_groups: Union[pd.DataFrame, np.ndarray],
         X = {'all_groups': X_all_groups, 'unemployed': X_unemployed, 'combined': X_combined}[model_type]
         coefficients = stats_dict[model_type]['coefficients']
         
+        # Отладка: вывод информации о размерах X и длине коэффициентов
+        print(f"X.shape в calculate_all_statistics для модели {model_type}: {X.shape}")
+        print(f"Длина coefficients для модели {model_type}: {len(coefficients)}")
+        
         # Получаем имена признаков в формате как в Excel
         if model_type == 'all_groups':
-            # Создаем имена в формате X1, X2, X3 и т.д.
+            # Создаем имена для фактических коэффициентов модели
             feature_names = ['Y-пересечение']
+            
+            # Число коэффициентов модели без константы должно точно соответствовать числу признаков
+            num_features = len(coefficients) - 1
+            
             if hasattr(X, 'columns'):
-                for i, col in enumerate(X.columns):
-                    feature_names.append(f'Переменная X {i+1}')
+                # Используем реальные имена колонок DataFrame, проверяя их количество
+                if len(X.columns) != num_features:
+                    print(f"ОШИБКА: Несоответствие между числом признаков ({len(X.columns)}) и числом коэффициентов ({num_features})")
+                
+                # Добавляем имена из реальных колонок, ограничивая их количеством коэффициентов
+                for i in range(num_features):
+                    if i < len(X.columns):
+                        feature_names.append(str(X.columns[i]))
+                    else:
+                        feature_names.append(f'Переменная X {i+1}')
             else:
-                for i in range(X.shape[1]):
+                # Если X - не DataFrame, создаем стандартные имена
+                for i in range(num_features):
                     feature_names.append(f'Переменная X {i+1}')
                     
             stats_dict[model_type]['excel_feature_names'] = feature_names
+            print(f"excel_feature_names для модели {model_type}: {feature_names}")
             
         elif model_type == 'unemployed':
             # Для модели безработицы
-            feature_names = ['Y-пересечение', 'Переменная X 1']
+            num_features = len(coefficients) - 1
+            feature_names = ['Y-пересечение']
+            
+            # Проверяем соответствие числа признаков и коэффициентов
+            if num_features != X.shape[1]:
+                print(f"ОШИБКА: Несоответствие между числом признаков ({X.shape[1]}) и числом коэффициентов ({num_features}) для модели unemployed")
+            
+            # Добавляем имена, если X - DataFrame, используем имена колонок
+            if hasattr(X, 'columns') and len(X.columns) > 0:
+                for i in range(num_features):
+                    if i < len(X.columns):
+                        feature_names.append(str(X.columns[i]))
+                    else:
+                        feature_names.append('Переменная X 1')
+            else:
+                for i in range(num_features):
+                    feature_names.append('Переменная X 1')
+                    
             stats_dict[model_type]['excel_feature_names'] = feature_names
+            print(f"excel_feature_names для модели {model_type}: {feature_names}")
             
         else:  # combined
             # Для комбинированной модели
             feature_names = ['Y-пересечение']
+            num_features = len(coefficients) - 1  # Вычитаем константу
+            
+            # Проверяем соответствие числа признаков и коэффициентов
+            if num_features != X.shape[1]:
+                print(f"ОШИБКА: Несоответствие между числом признаков ({X.shape[1]}) и числом коэффициентов ({num_features}) для модели combined")
+            
             if hasattr(X, 'columns'):
-                for i, col in enumerate(X.columns):
-                    feature_names.append(f'Переменная X {i+1}')
+                # Используем реальные имена колонок
+                for i in range(num_features):
+                    if i < len(X.columns):
+                        feature_names.append(str(X.columns[i]))
+                    else:
+                        feature_names.append(f'Переменная X {i+1}')
             else:
-                for i in range(X.shape[1]):
+                # Если X - не DataFrame
+                for i in range(num_features):
                     feature_names.append(f'Переменная X {i+1}')
                     
             stats_dict[model_type]['excel_feature_names'] = feature_names
+            print(f"excel_feature_names для модели {model_type}: {feature_names}")
         
         try:
             # Добавляем расчет VIF для каждой модели, если X является DataFrame
@@ -365,8 +413,15 @@ def calculate_all_statistics(X_all_groups: Union[pd.DataFrame, np.ndarray],
                 vif_values = calculate_vif(X)
                 # Добавляем VIF = 0 для константы (Y-пересечения)
                 vif_list = [0.0]  # Константа не имеет VIF
-                for col in X.columns:
-                    vif_list.append(vif_values.get(col, 1.0))
+                
+                # Добавляем VIF только для фактических признаков
+                for i in range(num_features):
+                    if i < len(X.columns):
+                        col = X.columns[i]
+                        vif_list.append(vif_values.get(col, 1.0))
+                    else:
+                        vif_list.append(1.0)  # Заполняем значением по умолчанию, если недостаточно колонок
+                        
                 stats_dict[model_type]['vif'] = vif_list
                 
                 # Добавляем максимальное значение VIF как отдельный показатель

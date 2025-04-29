@@ -818,29 +818,41 @@ class ModelDisplayFrame(tk.Frame):
         else:
             feature_names = model_stats['feature_names']
         
-        # Заполнение таблицы коэффициентов
+        # ИСПРАВЛЕНИЕ: Убедимся, что количество имен признаков соответствует количеству коэффициентов
+        # Обрезаем список имен признаков, чтобы он соответствовал фактическому количеству коэффициентов
+        feature_names = feature_names[:len(model_stats['coefficients'])]
+        
+        # Заполнение таблицы коэффициентов - только для фактических коэффициентов
         for i, name in enumerate(feature_names):
             if i < len(model_stats['coefficients']):
                 # Определяем цветовой тег для строки на основе значимости
-                is_significant = model_stats['p_values'][i] < 0.05
+                is_significant = i < len(model_stats['p_values']) and model_stats['p_values'][i] < 0.05
                 tag = "significant" if is_significant else "not_significant"
+                
+                # ИСПРАВЛЕНИЕ: Проверяем, что все необходимые массивы имеют достаточную длину
+                coef_value = model_stats['coefficients'][i] if i < len(model_stats['coefficients']) else 0
+                se_value = model_stats['se_coefficients'][i] if i < len(model_stats['se_coefficients']) else 0
+                t_value = model_stats['t_values'][i] if i < len(model_stats['t_values']) else 0
+                p_value = model_stats['p_values'][i] if i < len(model_stats['p_values']) else 1.0
+                lower_ci_value = model_stats['lower_ci'][i] if i < len(model_stats['lower_ci']) else 0
+                upper_ci_value = model_stats['upper_ci'][i] if i < len(model_stats['upper_ci']) else 0
                 
                 # Заполняем строку с данными
                 coef_table.insert("", "end", values=(
                     name, 
-                    f"{model_stats['coefficients'][i]:.8f}", 
-                    f"{model_stats['se_coefficients'][i]:.8f}", 
-                    f"{model_stats['t_values'][i]:.8f}", 
-                    f"{model_stats['p_values'][i]:.8f}",
-                    f"{model_stats['lower_ci'][i]:.8f}",
-                    f"{model_stats['upper_ci'][i]:.8f}"
+                    f"{coef_value:.8f}", 
+                    f"{se_value:.8f}", 
+                    f"{t_value:.8f}", 
+                    f"{p_value:.8f}",
+                    f"{lower_ci_value:.8f}",
+                    f"{upper_ci_value:.8f}"
                 ), tags=(tag,))
         
         # Настраиваем цвета для тегов значимости
         coef_table.tag_configure("significant", background=DARK_THEME['success'])  # Темно-зеленый
         coef_table.tag_configure("not_significant", background=DARK_THEME['error'])  # Темно-красный    
         
-         # Применяем стили темной темы к таблице
+        # Применяем стили темной темы к таблице
         style_treeview_tags(coef_table)
         
         # Горизонтальная прокрутка для таблицы коэффициентов

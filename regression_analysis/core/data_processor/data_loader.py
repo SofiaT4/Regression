@@ -131,36 +131,36 @@ def prepare_data(df: pd.DataFrame, age_groups: Optional[List[str]] = None) -> Tu
     # Проверяем, существуют ли необходимые колонки, и если нет, ищем подходящие
     for req_col, keywords in required_cols.items():
         if req_col not in df.columns:
+            found = False
             for col in df.columns:
                 col_str = str(col).lower()
                 if any(kw in col_str for kw in keywords):
                     df = df.rename(columns={col: req_col})
+                    found = True
                     break
-    
-    # Если после поиска все еще нет необходимых колонок, создаем их
-    if 'Год' not in df.columns:
-        df['Год'] = range(2000, 2000 + len(df))
-        print("Колонка 'Год' не найдена. Создана последовательность лет, начиная с 2000.")
-    
-    if 'ВВП (в текущих ценах)' not in df.columns:
-        # Если у нас есть хотя бы одна числовая колонка, используем ее как ВВП
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
-        if len(numeric_cols) > 0:
-            # Выбираем первую числовую колонку, которая не Год
-            for col in numeric_cols:
-                if col != 'Год' and col != 'Численность безработных в возрасте 15-72 лет (Тыс. человек)':
-                    df['ВВП (в текущих ценах)'] = df[col]
-                    print(f"Колонка '{col}' используется как 'ВВП'.")
-                    break
-        else:
-            # Создаем случайные данные для ВВП
-            df['ВВП (в текущих ценах)'] = np.random.randint(1000000, 10000000, len(df))
-            print("Колонка 'ВВП' не найдена. Созданы случайные данные для демонстрации.")
-    
-    if 'Численность безработных в возрасте 15-72 лет (Тыс. человек)' not in df.columns:
-        # Создаем случайные данные для безработицы
-        df['Численность безработных в возрасте 15-72 лет (Тыс. человек)'] = np.random.randint(3000, 6000, len(df))
-        print("Колонка 'Безработные' не найдена. Созданы случайные данные для демонстрации.")
+            
+            # Если не нашли подходящую колонку, создаем ее
+            if not found:
+                if req_col == 'Год':
+                    df['Год'] = range(2000, 2000 + len(df))
+                    print("Колонка 'Год' не найдена. Создана последовательность лет, начиная с 2000.")
+                elif req_col == 'ВВП (в текущих ценах)':
+                    # Ищем любую числовую колонку, которая еще не использована
+                    numeric_cols = df.select_dtypes(include=[np.number]).columns
+                    if len(numeric_cols) > 0:
+                        for col in numeric_cols:
+                            if col != 'Год' and col != 'Численность безработных в возрасте 15-72 лет (Тыс. человек)':
+                                df['ВВП (в текущих ценах)'] = df[col]
+                                print(f"Колонка '{col}' используется как 'ВВП'.")
+                                break
+                    
+                    # Если не нашли подходящую числовую колонку, создаем случайные данные
+                    if 'ВВП (в текущих ценах)' not in df.columns:
+                        df['ВВП (в текущих ценах)'] = np.random.randint(1000000, 10000000, len(df))
+                        print("Колонка 'ВВП' не найдена. Созданы случайные данные для демонстрации.")
+                elif req_col == 'Численность безработных в возрасте 15-72 лет (Тыс. человек)':
+                    df[req_col] = np.random.randint(3000, 6000, len(df))
+                    print("Колонка 'Безработные' не найдена. Созданы случайные данные для демонстрации.")
     
     # Если возрастные группы не переданы, пытаемся определить их автоматически
     if age_groups is None or len(age_groups) == 0:
@@ -187,13 +187,27 @@ def prepare_data(df: pd.DataFrame, age_groups: Optional[List[str]] = None) -> Tu
             if (('возраст' in col_lower or 'лет' in col_lower) and 
                 not 'безраб' in col_lower):
                 age_groups.append(col)
-                
-        print(f"Обнаружено {len(age_groups)} возрастных групп: {age_groups[:5] if len(age_groups) > 5 else age_groups}")
+        
+        # Печатаем информацию о найденных возрастных группах
+        if age_groups:
+            print(f"Обнаружено {len(age_groups)} возрастных групп: {age_groups}")
+        else:
+            print("Возрастные группы не обнаружены.")
     
     # 1. Модель: ВВП от всех возрастных групп
     if age_groups and len(age_groups) > 0:
-        X_all_groups = df[age_groups].copy()
-        print(f"Модель 'all_groups' использует {len(age_groups)} признаков.")
+        # Проверяем наличие колонок возрастных групп в датафрейме
+        valid_age_groups = [col for col in age_groups if col in df.columns]
+        
+        if valid_age_groups:
+            X_all_groups = df[valid_age_groups].copy()
+            print(f"Модель 'all_groups' использует {len(valid_age_groups)} признаков: {valid_age_groups}")
+        else:
+            # Если не найдены указанные возрастные группы, создаем пустой датафрейм с одной колонкой
+            X_all_groups = pd.DataFrame({
+                'Численность рабочих (итого)': np.random.randint(10000, 50000, len(df))
+            }, index=df.index)
+            print("Указанные возрастные группы не найдены в данных. Создана фиктивная колонка 'Численность рабочих (итого)'.")
     else:
         # Если возрастные группы не найдены, создаем пустой датафрейм с одной колонкой
         X_all_groups = pd.DataFrame({
@@ -202,7 +216,7 @@ def prepare_data(df: pd.DataFrame, age_groups: Optional[List[str]] = None) -> Tu
         print("Возрастные группы не найдены. Создана фиктивная колонка 'Численность рабочих (итого)'.")
     
     # 2. Модель: ВВП от безработицы
-    # ВАЖНОЕ ИСПРАВЛЕНИЕ: явно создаем DataFrame с одним столбцом
+    # Явно создаем DataFrame с одним столбцом
     unemployed_col = 'Численность безработных в возрасте 15-72 лет (Тыс. человек)'
     X_unemployed = pd.DataFrame({
         unemployed_col: df[unemployed_col].values
@@ -210,15 +224,15 @@ def prepare_data(df: pd.DataFrame, age_groups: Optional[List[str]] = None) -> Tu
     print(f"Модель 'unemployed' использует колонку '{unemployed_col}'")
     
     # 3. Модель: ВВП от всех возрастных групп и безработицы
-    if age_groups and len(age_groups) > 0:
+    if len(X_all_groups.columns) > 0:
         # Создаем копию DataFrame для возрастных групп
         X_combined = X_all_groups.copy()
         # Добавляем колонку с безработицей
         X_combined[unemployed_col] = df[unemployed_col].values
-        print(f"Модель 'combined' использует {len(age_groups)+1} признаков (включая безработицу).")
+        print(f"Модель 'combined' использует {len(X_combined.columns)} признаков: {list(X_combined.columns)}")
     else:
         X_combined = pd.concat([X_all_groups, X_unemployed], axis=1)
-        print(f"Модель 'combined' использует фиктивные данные и безработицу.")
+        print(f"Модель 'combined' использует фиктивные данные и безработицу: {list(X_combined.columns)}")
     
     # Целевая переменная для всех моделей
     y = df['ВВП (в текущих ценах)']

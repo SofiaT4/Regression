@@ -685,13 +685,17 @@ def create_dynamics_plot(
     Returns:
     Figure: Обновленный объект фигуры matplotlib
     """
+    # Импортируем настройки темы
+    from ui.components.theme_manager import DARK_THEME
+    
     ax = fig.add_subplot(111)
+    ax.set_facecolor(DARK_THEME['bg'])
     
     # Нормализуем ВВП
     gdp_norm = (y - y.min()) / (y.max() - y.min())
     
     # Сначала добавляем ВВП
-    ax.plot(years, gdp_norm, marker='o', color='black', linewidth=2, markersize=6, label='ВВП (норм.)')
+    ax.plot(years, gdp_norm, marker='o', color=DARK_THEME['neutral'], linewidth=2, markersize=6, label='ВВП (норм.)')
     
     if model_type == 'unemployed':
         # Для модели от безработицы
@@ -702,7 +706,7 @@ def create_dynamics_plot(
             
         unemployed_data = X.iloc[:, 0] if hasattr(X, 'iloc') else X
         unemployed_norm = (unemployed_data - unemployed_data.min()) / (unemployed_data.max() - unemployed_data.min())
-        ax.plot(years, unemployed_norm, marker='s', color='#dc3545', linewidth=2, markersize=6, label='Безработица (норм.)')
+        ax.plot(years, unemployed_norm, marker='s', color=DARK_THEME['error'], linewidth=2, markersize=6, label='Безработица (норм.)')
         
         # Рассчитываем корреляцию
         corr = np.corrcoef(gdp_norm, unemployed_norm)[0, 1]
@@ -710,7 +714,8 @@ def create_dynamics_plot(
         # Добавляем информацию о корреляции
         corr_text = f"Корреляция ВВП и безработицы: {corr:.4f}"
         ax.text(0.02, 0.05, corr_text, transform=ax.transAxes, fontsize=10,
-               bbox=dict(facecolor='white', alpha=0.8, boxstyle='round,pad=0.5', edgecolor='#cccccc'))
+               bbox=dict(facecolor=DARK_THEME['bg_light'], alpha=0.8, boxstyle='round,pad=0.5', 
+                        edgecolor=DARK_THEME['border']), color=DARK_THEME['neutral'])
         
     elif model_type == 'all_groups' or model_type == 'combined':
         # Для моделей с возрастными группами
@@ -733,7 +738,9 @@ def create_dynamics_plot(
                 step = max(1, X.shape[1] // 4)
                 selected_cols = list(range(0, X.shape[1], step))[:4]
         
-        colors = ['#3366cc', '#28a745', '#fd7e14', '#6f42c1']
+        # Используем цвета из темной темы для линий
+        colors = [DARK_THEME['accent'], DARK_THEME['success'], 
+                 '#fd7e14', DARK_THEME['secondary']]
         
         corr_text = "Корреляции с ВВП:\n"
         
@@ -770,27 +777,44 @@ def create_dynamics_plot(
             if unemployed_idx != -1:
                 unemployed_data = X.iloc[:, unemployed_idx]
                 unemployed_norm = (unemployed_data - unemployed_data.min()) / (unemployed_data.max() - unemployed_data.min())
-                ax.plot(years, unemployed_norm, marker='^', color='#dc3545', linewidth=2, markersize=6, label='Безработица (норм.)')
+                ax.plot(years, unemployed_norm, marker='^', color=DARK_THEME['error'], linewidth=2, markersize=6, label='Безработица (норм.)')
                 
                 # Добавляем корреляцию в текст
                 corr = np.corrcoef(gdp_norm, unemployed_norm)[0, 1]
                 corr_text += f"Безработица: {corr:.4f}"
         
-        # Добавляем информацию о корреляциях
+        # Добавляем информацию о корреляциях с нужными цветами из темной темы
         ax.text(0.02, 0.02, corr_text, transform=ax.transAxes, fontsize=9,
-               bbox=dict(facecolor='white', alpha=0.8, boxstyle='round,pad=0.5', edgecolor='#cccccc'))
+               bbox=dict(facecolor=DARK_THEME['bg_light'], alpha=0.9, boxstyle='round,pad=0.5', 
+                        edgecolor=DARK_THEME['border']), color=DARK_THEME['neutral'])
     
     ax.set_title(f'Динамика ВВП и {model_names[model_type]} (нормализованные значения)', 
-                 fontsize=14, pad=20, fontweight='bold')
-    ax.set_xlabel('Год', fontsize=12, labelpad=10)
-    ax.set_ylabel('Нормализованное значение', fontsize=12, labelpad=10)
+                 fontsize=14, pad=20, fontweight='bold', color=DARK_THEME['neutral'])
+    ax.set_xlabel('Год', fontsize=12, labelpad=10, color=DARK_THEME['neutral'])
+    ax.set_ylabel('Нормализованное значение', fontsize=12, labelpad=10, color=DARK_THEME['neutral'])
     
-    ax.legend(loc='best', frameon=True, framealpha=0.9, facecolor='white', edgecolor='#cccccc')
-    ax.tick_params(axis='x', rotation=45)
+    # Настраиваем легенду под темную тему
+    legend = ax.legend(loc='best', frameon=True, framealpha=0.9)
+    legend.get_frame().set_facecolor(DARK_THEME['bg_light'])
+    legend.get_frame().set_edgecolor(DARK_THEME['border'])
     
-    # Удаляем лишние рамки
+    # Обновляем цвет текста в легенде
+    for text in legend.get_texts():
+        text.set_color(DARK_THEME['neutral'])
+    
+    # Настраиваем цвет делений на осях
+    ax.tick_params(axis='x', rotation=45, colors=DARK_THEME['neutral'])
+    ax.tick_params(axis='y', colors=DARK_THEME['neutral'])
+    
+    # Настраиваем сетку
+    ax.grid(True, alpha=0.5, color=DARK_THEME['bg_light'], linestyle='--')
+    
+    # Удаляем лишние рамки и настраиваем их цвет
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
+    
+    for spine in ax.spines.values():
+        spine.set_color(DARK_THEME['neutral'])
     
     return fig
 

@@ -35,6 +35,10 @@ def format_equation_for_display(
     else:
         feature_names = model_stats['feature_names']
     
+    # Проверяем соответствие длины коэффициентов и имен признаков
+    # Важно! Используем только фактическое количество коэффициентов и не добавляем фиктивных
+    feature_names = feature_names[:len(coefs)]
+    
     # Функция для форматирования чисел в зависимости от их величины
     def format_number(value):
         if abs(value) >= 1000000:
@@ -52,18 +56,20 @@ def format_equation_for_display(
         # Для модели с одной переменной (безработица)
         if len(coefs) > 1:
             slope = coefs[1]
-            slope_str = format_number(slope)
+            slope_str = format_number(abs(slope))
             
             # Используем имя переменной или "Безработица"
             variable_name = additional_labels[0] if additional_labels else "Безработица"
             
-            # Форматируем знак перед константой (как в Excel)
-            sign = "+" if intercept >= 0 else "-"
-            abs_intercept = abs(intercept)
-            abs_intercept_str = format_number(abs_intercept)
+            # Форматируем знак перед коэффициентом
+            sign = "" if slope >= 0 else "-"
             
-            # Уравнение в формате Excel: y = mx + b
-            equation = f"y = {slope_str}·{variable_name} {sign} {abs_intercept_str}"
+            # Уравнение в формате: y = mx + b или y = -mx + b
+            if intercept >= 0:
+                equation = f"y = {sign}{slope_str}·{variable_name} + {intercept_str}"
+            else:
+                intercept_abs_str = format_number(abs(intercept))
+                equation = f"y = {sign}{slope_str}·{variable_name} - {intercept_abs_str}"
         else:
             equation = f"y = {intercept_str}"  # Только константа, если нет коэффициентов
             
@@ -73,50 +79,59 @@ def format_equation_for_display(
         equation = f"y = {intercept_str}"
         
         # Добавляем каждый коэффициент, игнорируя константу (индекс 0)
+        # Используем только реальные коэффициенты, а не фиктивные
         for i in range(1, len(coefs)):
-            coef = coefs[i]
-            coef_str = format_number(abs(coef))
-            
-            # Используем реальные имена признаков, если они доступны
+            # Проверяем, что у нас есть соответствующее имя признака
             if i < len(feature_names):
-                # Упрощаем имя признака, если возможно
+                coef = coefs[i]
+                coef_str = format_number(abs(coef))
+                
+                # Получаем имя признака
                 variable_name = feature_names[i]
-                if len(feature_names) > 10:  # Если много признаков, используем краткие имена
-                    variable_name = f"X{i}"
-            else:
-                variable_name = f"X{i}"
-            
-            # Форматируем знак коэффициента
-            if coef >= 0:
-                equation += f" + {coef_str}·{variable_name}"
-            else:
-                equation += f" - {coef_str}·{variable_name}"
+                
+                # Если используется короткое имя столбца (например "25-34"),
+                # можно добавить префикс для ясности
+                if age_group_label and not variable_name.startswith(age_group_label):
+                    if all(c.isdigit() or c in "-–" for c in variable_name):
+                        variable_name = f"{age_group_label} {variable_name}"
+                
+                # Форматируем знак коэффициента
+                if coef >= 0:
+                    equation += f" + {coef_str}·{variable_name}"
+                else:
+                    equation += f" - {coef_str}·{variable_name}"
         
     else:  # combined model
         # Для комбинированной модели (начинаем с константы)
         equation = f"y = {intercept_str}"
         
+        # Количество признаков без константы (должно совпадать с фактическим количеством коэффициентов)
+        n_features = len(coefs) - 1
+        
         # Добавляем каждый коэффициент, игнорируя константу (индекс 0)
         for i in range(1, len(coefs)):
-            coef = coefs[i]
-            coef_str = format_number(abs(coef))
-            
-            # Используем реальные имена признаков, если они доступны
+            # Проверяем, что у нас есть соответствующее имя признака
             if i < len(feature_names):
+                coef = coefs[i]
+                coef_str = format_number(abs(coef))
+                
+                # Определяем имя признака
                 variable_name = feature_names[i]
                 
-                # Если это последний коэффициент и есть дополнительные метки,
-                # используем метку "Безработица" для последнего коэффициента в комбинированной модели
-                if i == len(coefs) - 1 and additional_labels:
+                # Особый случай для последнего коэффициента в комбинированной модели
+                # обычно это безработица, но проверяем, что это действительно так
+                if i == n_features and additional_labels and "безраб" in variable_name.lower():
                     variable_name = additional_labels[0]
-            else:
-                variable_name = f"X{i}"
-            
-            # Форматируем знак коэффициента
-            if coef >= 0:
-                equation += f" + {coef_str}·{variable_name}"
-            else:
-                equation += f" - {coef_str}·{variable_name}"
+                # Для остальных коэффициентов - могут быть возрастные группы
+                elif age_group_label and not variable_name.startswith(age_group_label):
+                    if all(c.isdigit() or c in "-–" for c in variable_name):
+                        variable_name = f"{age_group_label} {variable_name}"
+                
+                # Форматируем знак коэффициента
+                if coef >= 0:
+                    equation += f" + {coef_str}·{variable_name}"
+                else:
+                    equation += f" - {coef_str}·{variable_name}"
     
     return equation
 
@@ -160,10 +175,38 @@ def format_equation_for_charts(model_stats: Dict[str, Any], current_model: str) 
         intercept = coefs[0]
         intercept_str = format_number(intercept)
         
+        # Фактическое количество коэффициентов без константы
+        actual_coefs = len(coefs) - 1  # Вычитаем константу
+        
         # Если есть коэффициенты (кроме константы), находим наиболее значимые
-        if len(coefs) > 1:
-            # Находим два наибольших по модулю коэффициента для упрощенной модели
-            if len(coefs) > 3:  # Если коэффициентов много
+        if actual_coefs > 0:
+            # Если коэффициентов 1-2, включаем их все
+            if actual_coefs <= 2:
+                equation = f"y = "
+                for i in range(1, len(coefs)):
+                    coef = coefs[i]
+                    coef_str = format_number(abs(coef))
+                    
+                    if i == 1:  # Первый коэффициент
+                        if coef >= 0:
+                            equation += f"{coef_str}x{i}"
+                        else:
+                            equation += f"-{coef_str}x{i}"
+                    else:  # Последующие коэффициенты
+                        if coef >= 0:
+                            equation += f" + {coef_str}x{i}"
+                        else:
+                            equation += f" - {coef_str}x{i}"
+                
+                # Добавляем константу
+                if intercept >= 0:
+                    equation += f" + {intercept_str}"
+                else:
+                    intercept_abs_str = format_number(abs(intercept))
+                    equation += f" - {intercept_abs_str}"
+            else:
+                # Находим два наибольших по модулю коэффициента для упрощенной модели
+                # Важно! Ограничиваем поиск только фактическими коэффициентами
                 sorted_indices = sorted(range(1, len(coefs)), key=lambda i: abs(coefs[i]), reverse=True)
                 
                 # Выбираем два наиболее значимых коэффициента
@@ -187,18 +230,6 @@ def format_equation_for_charts(model_stats: Dict[str, Any], current_model: str) 
                 else:
                     intercept_abs_str = format_number(abs(intercept))
                     equation += f" - {intercept_abs_str}"
-            else:
-                # Если коэффициентов мало, включаем их все
-                equation = f"y = {intercept_str}"
-                
-                for i in range(1, len(coefs)):
-                    coef = coefs[i]
-                    coef_str = format_number(abs(coef))
-                    
-                    if coef >= 0:
-                        equation += f" + {coef_str}x{i}"
-                    else:
-                        equation += f" - {coef_str}x{i}"
         else:
             # Если коэффициентов нет, только константа
             equation = f"y = {intercept_str}"
@@ -207,14 +238,17 @@ def format_equation_for_charts(model_stats: Dict[str, Any], current_model: str) 
         intercept = coefs[0]
         intercept_str = format_number(intercept)
         
+        # Фактическое количество коэффициентов без константы
+        actual_coefs = len(coefs) - 1  # Вычитаем константу
+        
         # Для комбинированной модели показываем вклад возрастных групп и безработицы
-        if len(coefs) > 2:  # Если есть коэффициенты и возрастных групп, и безработицы
+        if actual_coefs > 1:  # Если есть коэффициенты и возрастных групп, и безработицы
             # Получаем коэффициент безработицы (обычно последний в списке)
             unemployment_idx = len(coefs) - 1
             unemployment_coef = coefs[unemployment_idx]
             unemployment_coef_str = format_number(abs(unemployment_coef))
             
-            # Находим наиболее значимую возрастную группу
+            # Находим наиболее значимую возрастную группу среди фактических коэффициентов
             age_group_indices = list(range(1, unemployment_idx))
             if age_group_indices:
                 age_idx = max(age_group_indices, key=lambda i: abs(coefs[i]))

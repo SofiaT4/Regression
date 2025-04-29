@@ -62,6 +62,7 @@ def build_regression_model(X: pd.DataFrame, y: pd.Series) -> Tuple[LinearRegress
     X_clean = X.loc[valid_rows].copy()
     y_clean = y.loc[valid_rows].copy()
     
+    # Важно! Выводим информацию о признаках для проверки
     print(f"Обучение модели с {X_clean.shape[1]} признаками: {X_clean.columns.tolist()}")
     
     # Проверка на мультиколлинеарность
@@ -72,50 +73,36 @@ def build_regression_model(X: pd.DataFrame, y: pd.Series) -> Tuple[LinearRegress
         
         if high_corr_cols:
             print(f"Предупреждение: Обнаружена сильная корреляция между признаками: {high_corr_cols}")
-            # Можно удалить высококоррелированные признаки, но здесь мы просто предупреждаем
+            # Мы только предупреждаем, но не удаляем колонки, чтобы не нарушать структуру данных
+    
+    # ИСПРАВЛЕНИЕ: Удаляем или модифицируем логику выбора признаков на основе корреляции
+    # Это может быть причиной изменения количества переменных
     
     # Проверка соотношения количества наблюдений и признаков
     if len(X_clean) <= X_clean.shape[1]:
         print("Предупреждение: количество наблюдений меньше или равно количеству признаков.")
-        print("Выбираем наиболее коррелированные с целевой переменной признаки.")
-        
-        # Вычисляем корреляцию каждого признака с целевой переменной
-        correlations = []
-        for col in X_clean.columns:
-            try:
-                corr = X_clean[col].corr(y_clean)
-                correlations.append((col, abs(corr)))
-            except:
-                # В случае ошибки (например, константный признак) присваиваем нулевую корреляцию
-                correlations.append((col, 0))
-        
-        # Сортируем признаки по абсолютной корреляции
-        correlations.sort(key=lambda x: x[1], reverse=True)
-        
-        # Выбираем признаки с максимальной корреляцией, оставляя хотя бы 1, но не более (n-2)
-        max_features = max(1, len(X_clean) - 2)
-        top_features = [corr[0] for corr in correlations[:max_features]]
-        
-        print(f"Выбраны признаки: {top_features}")
-        
-        # Используем только выбранные признаки
-        X_clean = X_clean[top_features]
+        print("Это может привести к переобучению модели.")
+        # НЕ выбираем признаки, а используем регуляризацию для предотвращения переобучения
+        model = Ridge(alpha=0.1)  # Используем Ridge вместо линейной регрессии
+    else:
+        # Обучаем обычную модель линейной регрессии
+        model = LinearRegression()
     
-    # Обучаем модель линейной регрессии
-    model = LinearRegression()
+    # Обучаем модель, используя ВСЕ доступные признаки
     model.fit(X_clean, y_clean)
     
     print(f"Коэффициенты модели: {model.coef_}")
     print(f"Константа модели: {model.intercept_}")
     
+    # ИСПРАВЛЕНИЕ: Проверяем, что количество коэффициентов совпадает с количеством признаков
+    if hasattr(model, 'coef_') and len(model.coef_) != X_clean.shape[1]:
+        print(f"ОШИБКА: Количество коэффициентов ({len(model.coef_)}) не совпадает с количеством признаков ({X_clean.shape[1]})")
+    
     # Создаем массив для предсказаний, изначально заполненный NaN
     y_pred = np.full_like(y.values, np.nan, dtype=float)
     
-    # Копируем X для предсказаний, используя только те колонки, которые были в обучающем наборе
-    X_for_prediction = X.copy()
-    
-    # Убеждаемся, что у нас есть только те признаки, которые использовались при обучении
-    X_for_prediction = X_for_prediction[X_clean.columns]
+    # ИСПРАВЛЕНИЕ: Убеждаемся, что X_for_prediction содержит только те же столбцы, что и X_clean
+    X_for_prediction = X[X_clean.columns].copy()
     
     # Делаем предсказания только для строк без пропущенных значений
     pred_valid_rows = X_for_prediction.dropna().index
