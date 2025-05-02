@@ -29,7 +29,7 @@ def detect_age_groups(df: pd.DataFrame) -> List[str]:
         col_str = str(col)
         
         # Игнорируем колонки, которые очевидно не являются возрастными группами
-        if col_str in ['Год', 'ВВП (в текущих ценах)', 'Численность безработных в возрасте 15-72 лет (Тыс. человек)']:
+        if col_str in ['Год', 'ВВП (в текущих ценах)', 'Численность безработных']:
             continue
             
         # Проверяем, содержит ли название колонки возрастной диапазон
@@ -48,7 +48,7 @@ def detect_age_groups(df: pd.DataFrame) -> List[str]:
     if not age_groups:
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         for col in numeric_cols:
-            if col not in ['Год', 'ВВП (в текущих ценах)', 'Численность безработных в возрасте 15-72 лет (Тыс. человек)']:
+            if col not in ['Год', 'ВВП (в текущих ценах)', 'Численность безработных']:
                 # Проверяем, что в колонке нет отрицательных значений (характерно для возрастов)
                 if df[col].min() >= 0:
                     age_groups.append(col)

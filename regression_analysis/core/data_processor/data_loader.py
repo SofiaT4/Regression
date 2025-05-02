@@ -125,7 +125,7 @@ def prepare_data(df: pd.DataFrame, age_groups: Optional[List[str]] = None) -> Tu
     required_cols = {
         'Год': ['год', 'year'],
         'ВВП (в текущих ценах)': ['ввп', 'gdp', 'врп', 'валов', 'продукт'],
-        'Численность безработных в возрасте 15-72 лет (Тыс. человек)': ['безраб', 'unemploy']
+        'Численность безработных': ['безраб', 'unemploy']
     }
     
     # Проверяем, существуют ли необходимые колонки, и если нет, ищем подходящие
@@ -149,7 +149,7 @@ def prepare_data(df: pd.DataFrame, age_groups: Optional[List[str]] = None) -> Tu
                     numeric_cols = df.select_dtypes(include=[np.number]).columns
                     if len(numeric_cols) > 0:
                         for col in numeric_cols:
-                            if col != 'Год' and col != 'Численность безработных в возрасте 15-72 лет (Тыс. человек)':
+                            if col != 'Год' and col != 'Численность безработных':
                                 df['ВВП (в текущих ценах)'] = df[col]
                                 print(f"Колонка '{col}' используется как 'ВВП'.")
                                 break
@@ -158,7 +158,7 @@ def prepare_data(df: pd.DataFrame, age_groups: Optional[List[str]] = None) -> Tu
                     if 'ВВП (в текущих ценах)' not in df.columns:
                         df['ВВП (в текущих ценах)'] = np.random.randint(1000000, 10000000, len(df))
                         print("Колонка 'ВВП' не найдена. Созданы случайные данные для демонстрации.")
-                elif req_col == 'Численность безработных в возрасте 15-72 лет (Тыс. человек)':
+                elif req_col == 'Численность безработных':
                     df[req_col] = np.random.randint(3000, 6000, len(df))
                     print("Колонка 'Безработные' не найдена. Созданы случайные данные для демонстрации.")
     
@@ -174,7 +174,7 @@ def prepare_data(df: pd.DataFrame, age_groups: Optional[List[str]] = None) -> Tu
             col_str = str(col)
             
             # Игнорируем обязательные колонки
-            if col_str in ['Год', 'ВВП (в текущих ценах)', 'Численность безработных в возрасте 15-72 лет (Тыс. человек)']:
+            if col_str in ['Год', 'ВВП (в текущих ценах)', 'Численность безработных']:
                 continue
                 
             # Проверяем, содержит ли название колонки возрастной диапазон
@@ -217,7 +217,7 @@ def prepare_data(df: pd.DataFrame, age_groups: Optional[List[str]] = None) -> Tu
     
     # 2. Модель: ВВП от безработицы
     # Явно создаем DataFrame с одним столбцом
-    unemployed_col = 'Численность безработных в возрасте 15-72 лет (Тыс. человек)'
+    unemployed_col = 'Численность безработных'
     X_unemployed = pd.DataFrame({
         unemployed_col: df[unemployed_col].values
     }, index=df.index)

@@ -191,7 +191,11 @@ class RegressionApp:
     def back_to_start(self):
         """Возвращает к начальному экрану для загрузки нового файла."""
         if hasattr(self, 'results_frame'):
-            self.results_frame.destroy()
+            # Check if the frame has a destroy method before calling it
+            if hasattr(self.results_frame, 'destroy') and callable(self.results_frame.destroy):
+                self.results_frame.destroy()
+            # Delete the attribute to make sure we don't try to use it later
+            delattr(self, 'results_frame')
         
         self.root.geometry("500x300")  # Возвращаем исходный размер
         center_window(self.root, 500, 300)

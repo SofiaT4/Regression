@@ -182,7 +182,7 @@ class ModelDisplayFrame(tk.Frame):
             fg=DARK_THEME['neutral'],
             activebackground=DARK_THEME['accent'],
             activeforeground=DARK_THEME['text_light'],
-            command=self.back_callback
+            command=self.handle_back_button  # Use the new handler
         )
         back_button.pack(side=tk.RIGHT, padx=5, pady=5)
         
@@ -234,6 +234,44 @@ class ModelDisplayFrame(tk.Frame):
         """Изменение размера внутреннего фрейма при изменении размера холста."""
         # Обновляем ширину внутреннего фрейма
         self.canvas.itemconfig(self.canvas_frame, width=event.width)
+
+    def destroy(self):
+        """Properly clean up the frame and all its components."""
+        # Store references to widgets we want to destroy
+        canvas = self.canvas
+        vsb = self.vsb
+        outer_frame = self.outer_frame
+        
+        # First unbind all events to prevent issues
+        try:
+            canvas.unbind_all("<MouseWheel>")
+            canvas.unbind_all("<Button-4>")
+            canvas.unbind_all("<Button-5>")
+        except:
+            pass  # Ignore any errors from unbinding
+        
+        # Remove our instance from the parent to prevent circular references
+        if hasattr(self, 'parent') and hasattr(self.parent, 'results_frame'):
+            self.parent.results_frame = None
+        
+        # Call super's destroy method first
+        super().destroy()
+        
+        # Now safely destroy components
+        try:
+            canvas.destroy()
+        except:
+            pass
+            
+        try:
+            vsb.destroy()
+        except:
+            pass
+            
+        try:
+            outer_frame.destroy()
+        except:
+            pass
 
     def bind_mousewheel(self):
         """Привязывает колесо мыши к прокрутке canvas."""
@@ -1362,3 +1400,11 @@ class ModelDisplayFrame(tk.Frame):
                 messagebox.showinfo("Экспорт", f"Сравнение моделей экспортировано в файл:\n{file_path}")
             except Exception as e:
                 messagebox.showerror("Ошибка", f"Ошибка при экспорте сравнения:\n{str(e)}")
+                
+    def handle_back_button(self):
+        """Handle the back button press by properly cleaning up before calling back_callback."""
+        # First destroy this frame properly
+        self.destroy()
+        
+        # Then call the callback to return to file selection
+        self.back_callback()

@@ -527,7 +527,7 @@ class CSVSettingsDialog:
             # Для безработицы - расширяем поиск
             elif ('безраб' in col_str or 'unemploy' in col_str or 'безроб' in col_str or
                 'безработн' in col_str or 'безработиц' in col_str):
-                column_mapping[col] = 'Численность безработных в возрасте 15-72 лет (Тыс. человек)'
+                column_mapping[col] = 'Численность безработных'
             
             # Для численности рабочих - расширяем поиск
             elif ('рабоч' in col_str or 'работ' in col_str or 'employ' in col_str or 
@@ -562,11 +562,11 @@ class CSVSettingsDialog:
         
         # Находим колонку безработицы (если пользователь указал)
         unemployed_col_pattern = self.unemployed_var.get().lower()
-        if unemployed_col_pattern and 'Численность безработных в возрасте 15-72 лет (Тыс. человек)' not in self.df.columns:
+        if unemployed_col_pattern and 'Численность безработных' not in self.df.columns:
             for col in self.df.columns:
                 col_str = str(col).lower()
                 if unemployed_col_pattern in col_str or col_str == unemployed_col_pattern:
-                    user_column_mapping[col] = 'Численность безработных в возрасте 15-72 лет (Тыс. человек)'
+                    user_column_mapping[col] = 'Численность безработных'
                     break
         
         # Применяем пользовательские переименования
@@ -597,7 +597,7 @@ class CSVSettingsDialog:
                 self.df['ВВП (в текущих ценах)'] = np.random.randint(1000000, 10000000, len(self.df))
                 logger.warning("Колонка 'ВВП (в текущих ценах)' не найдена. Созданы случайные данные для демонстрации.")
         
-        if 'Численность безработных в возрасте 15-72 лет (Тыс. человек)' not in self.df.columns:
+        if 'Численность безработных' not in self.df.columns:
             # Ищем подходящую числовую колонку для безработицы
             numeric_cols = self.df.select_dtypes(include=[np.number]).columns
             if len(numeric_cols) > 0:
@@ -605,13 +605,13 @@ class CSVSettingsDialog:
                 for col in numeric_cols:
                     if (col != 'Год' and col != 'ВВП (в текущих ценах)' and 
                         col not in self.age_groups):
-                        self.df['Численность безработных в возрасте 15-72 лет (Тыс. человек)'] = self.df[col]
+                        self.df['Численность безработных'] = self.df[col]
                         logger.info(f"Колонка '{col}' используется как 'Численность безработных'.")
                         break
             
             # Если всё еще нет колонки безработицы, создаем фиктивную
-            if 'Численность безработных в возрасте 15-72 лет (Тыс. человек)' not in self.df.columns:
-                self.df['Численность безработных в возрасте 15-72 лет (Тыс. человек)'] = np.random.randint(3000, 6000, len(self.df))
+            if 'Численность безработных' not in self.df.columns:
+                self.df['Численность безработных'] = np.random.randint(3000, 6000, len(self.df))
                 logger.warning("Колонка 'Численность безработных' не найдена. Созданы случайные данные для демонстрации.")
         
         # Проверяем наличие возрастных групп
@@ -621,7 +621,7 @@ class CSVSettingsDialog:
             for col in self.df.columns:
                 col_str = str(col)
                 if (age_pattern.search(col_str) and 
-                    col not in ['Год', 'ВВП (в текущих ценах)', 'Численность безработных в возрасте 15-72 лет (Тыс. человек)']):
+                    col not in ['Год', 'ВВП (в текущих ценах)', 'Численность безработных']):
                     self.age_groups.append(col)
                     logger.debug(f"Найдена возрастная группа: {col}")
         
@@ -684,7 +684,7 @@ class CSVSettingsDialog:
             for col in self.df.columns:
                 col_str = str(col)
                 if age_pattern.search(col_str) and col not in ['Год', 'ВВП (в текущих ценах)', 
-                                                             'Численность безработных в возрасте 15-72 лет (Тыс. человек)',
+                                                             'Численность безработных',
                                                              'Численность рабочих, в том числе в возрасте, лет']:
                     age_groups.append(col)
             
@@ -731,7 +731,7 @@ class CSVSettingsDialog:
             # Проверяем, соответствует ли колонка префиксу/паттерну
             if age_prefix in col_str or col_str.lower().find(age_prefix.lower()) >= 0:
                 # Исключаем обязательные колонки
-                if col_str not in ['Год', 'ВВП (в текущих ценах)', 'Численность безработных в возрасте 15-72 лет (Тыс. человек)', 'Численность рабочих, в том числе в возрасте, лет']:
+                if col_str not in ['Год', 'ВВП (в текущих ценах)', 'Численность безработных', 'Численность рабочих, в том числе в возрасте, лет']:
                     matching_cols.append(col)
         
         return matching_cols
@@ -808,7 +808,7 @@ class CSVSettingsDialog:
                 self.df[column_name] = range(2000, 2000 + len(self.df))
             elif column_name == 'ВВП (в текущих ценах)':
                 self.df[column_name] = np.random.randint(1000000, 10000000, len(self.df))
-            elif column_name == 'Численность безработных в возрасте 15-72 лет (Тыс. человек)':
+            elif column_name == 'Численность безработных':
                 self.df[column_name] = np.random.randint(3000, 6000, len(self.df))
             
             # Проверяем, остались ли еще колонки для выбора
