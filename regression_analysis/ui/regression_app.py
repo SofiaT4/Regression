@@ -49,26 +49,45 @@ class RegressionApp:
         self.current_model = 'combined'
         
     def setup_start_screen(self):
-        """Создает начальный экран с кнопкой загрузки файла."""
+        """Создает начальный экран с кнопкой загрузки файла, адаптированный для полноэкранного режима."""
         from ui.components.theme_manager import DARK_THEME
         
-        self.start_frame = tk.Frame(self.root, padx=20, pady=20, bg=DARK_THEME['primary'])
+        self.start_frame = tk.Frame(self.root, bg=DARK_THEME['primary'])
         self.start_frame.pack(fill=tk.BOTH, expand=True)
         
+        # Добавляем кнопку выхода в правый верхний угол
+        exit_button = tk.Button(
+            self.root, 
+            text="✕", 
+            font=("Arial", 14, "bold"),
+            bg=DARK_THEME['error'],
+            fg=DARK_THEME['text_light'],
+            activebackground=DARK_THEME['bg_light'],
+            activeforeground=DARK_THEME['neutral'],
+            command=self.confirm_exit,
+            width=3,
+            height=1
+        )
+        exit_button.place(x=self.root.winfo_screenwidth() - 50, y=10)
+        
+        # Создаем центрированный контейнер для содержимого
+        content_frame = tk.Frame(self.start_frame, bg=DARK_THEME['primary'], padx=20, pady=20)
+        content_frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+        
         title_label = tk.Label(
-            self.start_frame, 
+            content_frame, 
             text="Регрессионный анализ", 
-            font=("Arial", 16, "bold"),
+            font=("Arial", 24, "bold"),
             bg=DARK_THEME['primary'],
             fg=DARK_THEME['neutral']
         )
-        title_label.pack(pady=20)
+        title_label.pack(pady=30)
         
         load_button = tk.Button(
-            self.start_frame, 
+            content_frame, 
             text="Загрузить CSV файл", 
             command=self.load_data, 
-            font=("Arial", 12), 
+            font=("Arial", 16), 
             width=25, 
             height=2,
             bg=DARK_THEME['bg_light'],
@@ -76,7 +95,7 @@ class RegressionApp:
             activebackground=DARK_THEME['accent'],
             activeforeground=DARK_THEME['text_light']
         )
-        load_button.pack(pady=20)
+        load_button.pack(pady=30)
     
     def load_data(self):
         """Открывает диалог выбора файла и запускает процесс загрузки данных."""
@@ -165,10 +184,8 @@ class RegressionApp:
             messagebox.showerror("Ошибка", f"Ошибка при анализе данных:\n{str(e)}")
             
     def show_results(self):
-        """Скрывает начальный экран и показывает результаты анализа с увеличенным размером окна."""
+        """Скрывает начальный экран и показывает результаты анализа в полноэкранном режиме."""
         self.start_frame.pack_forget()
-        self.root.geometry("900x700")  # Увеличиваем размер окна для отображения результатов
-        center_window(self.root, 900, 700)
         
         # Разрешаем изменение размера окна для результатов
         self.root.resizable(True, True)
@@ -189,7 +206,7 @@ class RegressionApp:
         )
 
     def back_to_start(self):
-        """Возвращает к начальному экрану для загрузки нового файла."""
+        """Возвращает к начальному экрану для загрузки нового файла, сохраняя полноэкранный режим."""
         if hasattr(self, 'results_frame'):
             # Check if the frame has a destroy method before calling it
             if hasattr(self.results_frame, 'destroy') and callable(self.results_frame.destroy):
@@ -197,9 +214,14 @@ class RegressionApp:
             # Delete the attribute to make sure we don't try to use it later
             delattr(self, 'results_frame')
         
-        self.root.geometry("500x300")  # Возвращаем исходный размер
-        center_window(self.root, 500, 300)
-        self.root.resizable(False, False)  # Блокируем изменение размера для начального экрана
+        # Блокируем изменение размера для начального экрана
+        self.root.resizable(False, False)
         
         # Перенастраиваем начальный экран с новым стилем
         self.setup_start_screen()
+
+    def confirm_exit(self):
+        """Отображает диалог подтверждения выхода и обрабатывает ответ."""
+        response = messagebox.askyesno("Подтверждение выхода", "Вы действительно хотите выйти?")
+        if response:
+            self.root.destroy()

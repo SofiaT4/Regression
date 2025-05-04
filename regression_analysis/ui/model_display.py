@@ -97,6 +97,21 @@ class ModelDisplayFrame(tk.Frame):
         """Настройка пользовательского интерфейса с вкладками."""
         from ui.components.theme_manager import DARK_THEME, style_treeview_tags
         
+        # Добавляем кнопку выхода в правый верхний угол
+        exit_button = tk.Button(
+            self.parent, 
+            text="✕", 
+            font=("Arial", 14, "bold"),
+            bg=DARK_THEME['error'],
+            fg=DARK_THEME['text_light'],
+            activebackground=DARK_THEME['bg_light'],
+            activeforeground=DARK_THEME['neutral'],
+            command=self.confirm_exit,
+            width=3,
+            height=1
+        )
+        exit_button.place(x=self.parent.winfo_screenwidth() - 50, y=10)
+        
         # Заголовок
         title_label = tk.Label(
             self, 
@@ -349,20 +364,20 @@ class ModelDisplayFrame(tk.Frame):
         )
         rb_unemployed.pack(anchor=tk.W, padx=5, pady=2)
         
-        # Создаем фрейм для содержимого, которое будет меняться при выборе модели
-        self.content_frame = tk.Frame(self.stats_frame, bg=DARK_THEME['primary'])
-        self.content_frame.pack(fill=tk.BOTH, expand=True, pady=5)
-        
-        # Создаем сворачиваемые разделы
+        # Создаем выпадающие разделы сразу под выбором модели
         self.equation_frame = self.create_collapsible_section(self.stats_frame, "Уравнение регрессии")
         self.reg_stats_frame = self.create_collapsible_section(self.stats_frame, "Регрессионная статистика")
         self.anova_frame = self.create_collapsible_section(self.stats_frame, "Дисперсионный анализ")
         self.coef_frame = self.create_collapsible_section(self.stats_frame, "Коэффициенты")
-        
-        # Добавляем сворачиваемую секцию для сравнения моделей
         self.comparison_frame = self.create_collapsible_section(self.stats_frame, "Сравнение моделей регрессии")
+        
+        # Настройка секции сравнения моделей
         self.setup_model_comparison_section(self.comparison_frame)
-         
+        
+        # Создаем фрейм для содержимого, которое будет меняться при выборе модели
+        self.content_frame = tk.Frame(self.stats_frame, bg=DARK_THEME['primary'])
+        self.content_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        
         # Заполняем контент для выбранной модели
         self.update_content()
         
@@ -675,7 +690,7 @@ class ModelDisplayFrame(tk.Frame):
             command=self.show_graphical_comparison
         )
         button.pack(fill=tk.X, pady=2)
-        
+    
     def change_model(self):
         """Обработчик переключения между моделями."""
         self.current_model = self.model_var.get()
@@ -1395,7 +1410,10 @@ class ModelDisplayFrame(tk.Frame):
     def setup_dependencies_tab(self):
         """
         Настраивает вкладку с графиками зависимостей ВВП от различных факторов.
+        Сразу отображает настройки графиков без дополнительных кнопок.
         """
+        from ui.components.theme_manager import DARK_THEME
+        
         # Определяем диапазон лет из данных
         year_col = None
         for col in self.df.columns:
@@ -1410,10 +1428,10 @@ class ModelDisplayFrame(tk.Frame):
             # Если нет колонки с годами, используем стандартный диапазон
             min_year = 2005
             max_year = 2020
-        
-        # Создаем виджет для отображения зависимостей
+            
+        # Создаем просмотрщик зависимостей
         self.dependency_viewer = DependencyViewer(
-            self.dependencies_frame,  # Используем существующий фрейм вместо dependencies_tab
+            self.dependencies_frame,
             df=self.df, 
             stats_dict=self.stats_dict,
             model_dict=self.models,
@@ -1422,3 +1440,15 @@ class ModelDisplayFrame(tk.Frame):
             y=self.y
         )
         self.dependency_viewer.pack(fill=tk.BOTH, expand=True)
+
+    def confirm_exit(self):
+        """Отображает диалог подтверждения выхода и обрабатывает ответ."""
+        from tkinter import messagebox
+        
+        # Показываем диалог подтверждения
+        response = messagebox.askyesno("Подтверждение выхода", "Вы действительно хотите выйти?")
+        
+        if response:
+            # Если пользователь подтвердил выход
+            self.destroy()
+            self.back_callback()
