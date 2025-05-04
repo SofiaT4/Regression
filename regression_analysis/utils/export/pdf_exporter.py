@@ -6,6 +6,8 @@
 """
 
 import os
+import sys
+import subprocess
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -21,10 +23,97 @@ try:
     from reportlab.platypus import PageBreak, ListFlowable, ListItem
     from reportlab.lib.units import inch, cm
     from matplotlib.backends.backend_pdf import PdfPages
+    # Импорт для поддержки кириллицы
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    
+    # Регистрируем шрифты для кириллицы
+    try:
+        # Пытаемся зарегистрировать DejaVu Sans - шрифт с хорошей поддержкой кириллицы
+        dejavu_paths = [
+            '/usr/share/fonts/TTF/DejaVuSans.ttf',  # Linux
+            '/Library/Fonts/DejaVuSans.ttf',        # macOS
+            'C:\\Windows\\Fonts\\DejaVuSans.ttf',   # Windows
+            # Системные шрифты macOS с поддержкой кириллицы
+            '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
+            '/System/Library/Fonts/Supplemental/Arial.ttf',
+            '/Library/Fonts/Arial Unicode.ttf',
+            # Системные шрифты Windows с поддержкой кириллицы
+            'C:\\Windows\\Fonts\\times.ttf',        # Times в Windows
+            'C:\\Windows\\Fonts\\timesbd.ttf',      # Times Bold в Windows
+            'C:\\Windows\\Fonts\\timesi.ttf',       # Times Italic в Windows
+            'C:\\Windows\\Fonts\\timesbi.ttf',      # Times Bold Italic в Windows
+            # Шрифты на случай, если остальных нет
+            '/System/Library/Fonts/Helvetica.ttc',
+            '/System/Library/Fonts/Times.ttc'
+        ]
+        
+        font_registered = False
+        for font_path in dejavu_paths:
+            if os.path.exists(font_path):
+                try:
+                    # Определяем имя шрифта в зависимости от файла
+                    if 'DejaVu' in font_path:
+                        pdfmetrics.registerFont(TTFont('DejaVuSans', font_path))
+                        font_registered = True
+                        break
+                    elif 'Arial' in font_path:
+                        pdfmetrics.registerFont(TTFont('ArialUnicode', font_path))
+                        font_registered = True
+                        break
+                    elif 'Helvetica' in font_path:
+                        pdfmetrics.registerFont(TTFont('HelveticaUnicode', font_path))
+                        font_registered = True
+                        break
+                    elif 'Times' in font_path or 'times' in font_path:
+                        # Регистрируем разные начертания Times для Windows
+                        if 'timesbd.ttf' in font_path:
+                            pdfmetrics.registerFont(TTFont('TimesBold', font_path))
+                        elif 'timesi.ttf' in font_path:
+                            pdfmetrics.registerFont(TTFont('TimesItalic', font_path))
+                        elif 'timesbi.ttf' in font_path:
+                            pdfmetrics.registerFont(TTFont('TimesBoldItalic', font_path))
+                        else:
+                            pdfmetrics.registerFont(TTFont('TimesNewRoman', font_path))
+                        font_registered = True
+                        break
+                except Exception as e:
+                    print(f"Не удалось зарегистрировать шрифт {font_path}: {e}")
+        
+        # Если ни один шрифт не зарегистрирован, пробуем стандартные шрифты
+        if not font_registered:
+            # Используем стандартные шрифты с поддержкой кириллицы
+            # Helvetica и Times - встроенные, но есть проблемы с кириллицей
+            # Courier - встроенный, может поддерживать базовую кириллицу
+            print("Используем стандартные шрифты PDF. Кириллица может отображаться некорректно.")
+    
+    except Exception as e:
+        print(f"Ошибка при регистрации шрифтов: {e}")
+    
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
     print("Предупреждение: библиотека ReportLab не установлена. Функции экспорта PDF будут ограничены.")
+
+# Определяем, какой шрифт использовать
+def get_cyrillic_font():
+    """Возвращает имя шрифта с поддержкой кириллицы."""
+    # Проверяем, какие шрифты зарегистрированы
+    registered_fonts = pdfmetrics.getRegisteredFontNames() if 'pdfmetrics' in globals() else []
+    
+    if 'DejaVuSans' in registered_fonts:
+        return 'DejaVuSans'
+    elif 'TimesNewRoman' in registered_fonts:
+        return 'TimesNewRoman'  # Предпочитаем Times New Roman для лучшей совместимости с Windows
+    elif 'ArialUnicode' in registered_fonts:
+        return 'ArialUnicode'
+    elif 'HelveticaUnicode' in registered_fonts:
+        return 'HelveticaUnicode'
+    elif 'TimesUnicode' in registered_fonts:
+        return 'TimesUnicode'
+    else:
+        # Возвращаем стандартный шрифт, если не нашли кириллических
+        return 'Helvetica'
 
 def export_figure_to_pdf(
     figure: Figure,
@@ -68,9 +157,7 @@ def export_figure_to_pdf(
         
         # Открываем файл, если указано
         if open_after_save:
-            try:
-                import subprocess, sys, os
-                
+            try:                
                 if sys.platform == 'win32':
                     os.startfile(filename)
                 elif sys.platform == 'darwin':  # macOS
@@ -141,8 +228,7 @@ def export_multiple_figures(
         # Открываем файл, если указано
         if open_after_save:
             try:
-                import subprocess, sys, os
-                
+                # Используем глобально импортированные модули
                 if sys.platform == 'win32':
                     os.startfile(filename)
                 elif sys.platform == 'darwin':  # macOS
@@ -206,6 +292,9 @@ def create_pdf_report(
         # Определяем размер страницы
         page_size = A4 if pagesize.upper() == "A4" else letter
         
+        # Получаем шрифт с поддержкой кириллицы
+        cyrillic_font = get_cyrillic_font()
+        
         # Создаем PDF-документ
         doc = SimpleDocTemplate(
             filename,
@@ -216,18 +305,44 @@ def create_pdf_report(
             keywords="регрессия, статистика, анализ данных"
         )
         
-        # Получаем стили
+        # Получаем стили и модифицируем их для кириллицы
         styles = getSampleStyleSheet()
-        title_style = styles['Title']
-        heading1_style = styles['Heading1']
-        heading2_style = styles['Heading2']
-        normal_style = styles['Normal']
+        
+        # Создаем кастомные стили для русского текста
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Title'],
+            fontName=cyrillic_font,
+            fontSize=18,
+            alignment=1  # По центру
+        )
+        
+        heading1_style = ParagraphStyle(
+            'CustomHeading1',
+            parent=styles['Heading1'],
+            fontName=cyrillic_font,
+            fontSize=14
+        )
+        
+        heading2_style = ParagraphStyle(
+            'CustomHeading2',
+            parent=styles['Heading2'],
+            fontName=cyrillic_font,
+            fontSize=12
+        )
+        
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontName=cyrillic_font,
+            fontSize=10
+        )
         
         # Создаем стиль для заголовков таблиц
         table_header_style = ParagraphStyle(
             'TableHeader',
-            parent=styles['Normal'],
-            fontName='Helvetica-Bold',
+            parent=normal_style,
+            fontName=cyrillic_font,
             fontSize=10,
             textColor=colors.black,
             alignment=1  # По центру
@@ -248,7 +363,7 @@ def create_pdf_report(
         
         # Добавляем дату
         date_string = f"Дата создания: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
-        elements.append(Paragraph(date_string, styles['Italic']))
+        elements.append(Paragraph(date_string, ParagraphStyle('Italic', parent=normal_style, fontName=cyrillic_font)))
         elements.append(Spacer(1, 0.5*inch))
         
         # Добавляем содержимое из словаря
@@ -299,25 +414,41 @@ def create_pdf_report(
                 elements.append(Spacer(1, 0.1*inch))
                 
                 # Конвертируем DataFrame в список для ReportLab Table
-                table_data = [table_df.columns.tolist()]  # Заголовки
+                # Используем строковое представление с корректной кодировкой
+                table_data = [[Paragraph(str(col), table_header_style) for col in table_df.columns]]
+                
+                # Преобразование всех данных в строки с корректной кодировкой
                 for _, row in table_df.iterrows():
-                    table_data.append(row.tolist())
+                    row_data = []
+                    for val in row:
+                        # Преобразуем значение в строку и оборачиваем в Paragraph для поддержки кириллицы
+                        if isinstance(val, float):
+                            # Форматируем числа с плавающей точкой
+                            if abs(val) < 0.0001 or abs(val) > 10000:
+                                text_val = f"{val:.4e}"  # Научная нотация для очень маленьких/больших чисел
+                            else:
+                                text_val = f"{val:.4f}"  # Обычный формат для других чисел
+                        else:
+                            text_val = str(val)
+                        row_data.append(Paragraph(text_val, normal_style))
+                    table_data.append(row_data)
                 
                 # Создаем таблицу
-                table = Table(table_data)
+                col_widths = [doc.width/len(table_df.columns)] * len(table_df.columns)
+                table = Table(table_data, colWidths=col_widths)
                 
                 # Стиль таблицы
                 table_style = TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
                     ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTNAME', (0, 0), (-1, 0), cyrillic_font),
                     ('FONTSIZE', (0, 0), (-1, 0), 10),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                     ('BACKGROUND', (0, 1), (-1, -1), colors.white),
                     ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
                     ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                    ('FONTNAME', (0, 1), (-1, -1), cyrillic_font),
                     ('FONTSIZE', (0, 1), (-1, -1), 9),
                     ('GRID', (0, 0), (-1, -1), 1, colors.grey),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -373,8 +504,7 @@ def create_pdf_report(
         # Открываем файл, если указано
         if open_after_save:
             try:
-                import subprocess, sys, os
-                
+                # Используем глобально импортированные модули
                 if sys.platform == 'win32':
                     os.startfile(filename)
                 elif sys.platform == 'darwin':  # macOS
