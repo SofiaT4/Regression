@@ -15,7 +15,6 @@ from ui.dialogs.file_selector import FileSelector
 # Импорты из просмотрщиков
 from ui.viewers.coefficient_viewer import CoefficientViewer
 from ui.viewers.graph_viewer import GraphViewer
-from ui.viewers.statistics_viewer import StatisticsViewer
 
 # Импорты основных элементов UI
 from ui.regression_app import RegressionApp
@@ -33,7 +32,6 @@ __all__ = [
     # Просмотрщики
     'CoefficientViewer',
     'GraphViewer',
-    'StatisticsViewer',
     
     # Основные элементы интерфейса
     'RegressionApp',

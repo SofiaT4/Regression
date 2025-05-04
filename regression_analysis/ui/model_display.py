@@ -5,7 +5,6 @@ import numpy as np
 
 from ui.viewers.graph_viewer import GraphViewer
 from ui.viewers.coefficient_viewer import CoefficientViewer
-from ui.viewers.statistics_viewer import StatisticsViewer
 from utils.visualization.graph_manager import export_all_plots
 from utils.export.pdf_exporter import export_to_pdf
 from core.models.model_formatter import format_equation_for_display, format_equation_for_charts
@@ -357,36 +356,7 @@ class ModelDisplayFrame(tk.Frame):
         # Добавляем сворачиваемую секцию для сравнения моделей
         self.comparison_frame = self.create_collapsible_section(self.stats_frame, "Сравнение моделей регрессии")
         self.setup_model_comparison_section(self.comparison_frame)
-        
-        # Сворачиваемая секция "Дополнительные функции"
-        self.additional_frame = self.create_collapsible_section(self.stats_frame, "Дополнительные функции")
-        
-        # Добавляем кнопку "Сравнить модели графически" в секцию дополнительных функций
-        compare_button = tk.Button(
-            self.additional_frame.contentframe, 
-            text="Сравнить модели графически", 
-            font=("Arial", 12),
-            bg=DARK_THEME['bg_light'],
-            fg=DARK_THEME['neutral'],
-            activebackground=DARK_THEME['accent'],
-            activeforeground=DARK_THEME['text_light'],
-            command=self.show_graphical_comparison
-        )
-        compare_button.pack(anchor=tk.W, pady=5, padx=10)
-        
-        # Кнопка подробной статистики
-        stats_button = tk.Button(
-            self.additional_frame.contentframe,
-            text="Подробная статистика",
-            font=("Arial", 12),
-            bg=DARK_THEME['bg_light'],
-            fg=DARK_THEME['neutral'],
-            activebackground=DARK_THEME['accent'],
-            activeforeground=DARK_THEME['text_light'],
-            command=lambda: self.show_detailed_statistics(self.stats_dict[self.current_model])
-        )
-        stats_button.pack(anchor=tk.W, pady=5, padx=10)
-        
+         
         # Заполняем контент для выбранной модели
         self.update_content()
         
@@ -683,7 +653,23 @@ class ModelDisplayFrame(tk.Frame):
                 command=lambda idx=i: self.show_graph(idx)
             )
             button.pack(fill=tk.X, pady=2)
-    
+            
+        button = tk.Button(
+            graphs_list_frame, 
+            text="5. Сравнить модели графически", 
+            font=("Arial", 12),
+            anchor="w",
+            padx=10,
+            pady=5,
+            width=50,
+            bg=DARK_THEME['bg_light'],
+            fg=DARK_THEME['neutral'],
+            activebackground=DARK_THEME['accent'],
+            activeforeground=DARK_THEME['text_light'],
+            command=self.show_graphical_comparison
+        )
+        button.pack(fill=tk.X, pady=2)
+        
     def change_model(self):
         """Обработчик переключения между моделями."""
         self.current_model = self.model_var.get()
@@ -922,16 +908,7 @@ class ModelDisplayFrame(tk.Frame):
         model_stats (dict): Статистические показатели модели
         """
         CoefficientViewer(self.parent, model_stats)
-    
-    def show_detailed_statistics(self, model_stats):
-        """
-        Показывает подробную статистику модели в отдельном окне.
-        
-        Parameters:
-        model_stats (dict): Статистические показатели модели
-        """
-        StatisticsViewer(self.parent, model_stats)
-    
+
     def export_current_model_plots(self):
         """Экспортирует графики текущей модели в PDF."""
         X = getattr(self, f'X_{self.current_model}')
