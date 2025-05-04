@@ -5,6 +5,7 @@ import numpy as np
 
 from ui.viewers.graph_viewer import GraphViewer
 from ui.viewers.coefficient_viewer import CoefficientViewer
+from ui.viewers.dependency_viewer import DependencyViewer
 from utils.visualization.graph_manager import export_all_plots
 from utils.export.pdf_exporter import export_to_pdf
 from core.models.model_formatter import format_equation_for_display, format_equation_for_charts
@@ -138,9 +139,14 @@ class ModelDisplayFrame(tk.Frame):
         self.graphs_frame = tk.Frame(self.notebook, padx=10, pady=10, bg=DARK_THEME['primary'])
         self.notebook.add(self.graphs_frame, text="Графики")
         
+        # Новая вкладка "Зависимости"
+        self.dependencies_frame = tk.Frame(self.notebook, padx=10, pady=10, bg=DARK_THEME['primary'])
+        self.notebook.add(self.dependencies_frame, text="Зависимости")
+        
         # Настройка вкладок
         self.setup_statistics_tab()
         self.setup_graphs_tab()
+        self.setup_dependencies_tab()
         
         # Кнопки управления
         button_frame = tk.Frame(self, bg=DARK_THEME['primary'])
@@ -1385,3 +1391,34 @@ class ModelDisplayFrame(tk.Frame):
         
         # Then call the callback to return to file selection
         self.back_callback()
+
+    def setup_dependencies_tab(self):
+        """
+        Настраивает вкладку с графиками зависимостей ВВП от различных факторов.
+        """
+        # Определяем диапазон лет из данных
+        year_col = None
+        for col in self.df.columns:
+            if col.lower() == 'год':
+                year_col = col
+                break
+        
+        if year_col:
+            min_year = int(self.df[year_col].min())
+            max_year = int(self.df[year_col].max())
+        else:
+            # Если нет колонки с годами, используем стандартный диапазон
+            min_year = 2005
+            max_year = 2020
+        
+        # Создаем виджет для отображения зависимостей
+        self.dependency_viewer = DependencyViewer(
+            self.dependencies_frame,  # Используем существующий фрейм вместо dependencies_tab
+            df=self.df, 
+            stats_dict=self.stats_dict,
+            model_dict=self.models,
+            year_range=(min_year, max_year),
+            age_groups=self.age_groups,
+            y=self.y
+        )
+        self.dependency_viewer.pack(fill=tk.BOTH, expand=True)
