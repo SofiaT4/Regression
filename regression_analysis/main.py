@@ -50,6 +50,17 @@ def main():
         root = tk.Tk()
         root.title("Регрессионный анализ")
         
+        # Запуск приложения в полноэкранном режиме
+        root.attributes('-fullscreen', True)
+        
+        # Добавляем возможность выхода из полноэкранного режима по клавише Escape
+        def toggle_fullscreen(event=None):
+            is_fullscreen = root.attributes('-fullscreen')
+            root.attributes('-fullscreen', not is_fullscreen)
+            
+        root.bind('<Escape>', toggle_fullscreen)
+        logger.info("Приложение запущено в полноэкранном режиме")
+        
         # Применяем темную тему ко всему приложению
         apply_theme(root)
         logger.info("Применен темный стиль оформления приложения")
@@ -58,10 +69,83 @@ def main():
         app = RegressionApp(root)
         logger.info("Приложение инициализировано")
         
+        # Функция для показа модального окна подтверждения выхода
+        def confirm_exit():
+            from ui.components.theme_manager import DARK_THEME
+            confirm_dialog = tk.Toplevel(root)
+            confirm_dialog.title("Подтверждение выхода")
+            confirm_dialog.attributes('-topmost', True)
+            confirm_dialog.geometry("350x150")
+            confirm_dialog.resizable(False, False)
+            apply_theme(confirm_dialog)
+            
+            # Центрируем диалог на экране
+            from ui.components.ui_helpers import center_window
+            center_window(confirm_dialog, 350, 150)
+            
+            # Делаем диалог модальным
+            confirm_dialog.grab_set()
+            confirm_dialog.focus_set()
+            
+            # Содержимое диалога
+            tk.Label(
+                confirm_dialog,
+                text="Вы действительно хотите выйти?",
+                font=("Arial", 12, "bold"),
+                bg=DARK_THEME['primary'],
+                fg=DARK_THEME['neutral']
+            ).pack(pady=20)
+            
+            # Фрейм для кнопок
+            button_frame = tk.Frame(confirm_dialog, bg=DARK_THEME['primary'])
+            button_frame.pack(pady=15)
+            
+            # Кнопка "Да"
+            tk.Button(
+                button_frame,
+                text="Да",
+                width=10,
+                font=("Arial", 11),
+                bg=DARK_THEME['error'],
+                fg=DARK_THEME['text_light'],
+                activebackground=DARK_THEME['bg_light'],
+                activeforeground=DARK_THEME['neutral'],
+                command=root.destroy
+            ).pack(side=tk.LEFT, padx=10)
+            
+            # Кнопка "Нет"
+            tk.Button(
+                button_frame,
+                text="Нет",
+                width=10,
+                font=("Arial", 11),
+                bg=DARK_THEME['bg_light'],
+                fg=DARK_THEME['neutral'],
+                activebackground=DARK_THEME['accent'],
+                activeforeground=DARK_THEME['text_light'],
+                command=confirm_dialog.destroy
+            ).pack(side=tk.LEFT, padx=10)
+            
+        # Добавляем кнопку выхода в правый верхний угол
+        from ui.components.theme_manager import DARK_THEME
+        exit_button = tk.Button(
+            root, 
+            text="✕", 
+            font=("Arial", 14, "bold"),
+            bg=DARK_THEME['error'],
+            fg=DARK_THEME['text_light'],
+            activebackground=DARK_THEME['bg_light'],
+            activeforeground=DARK_THEME['neutral'],
+            command=confirm_exit,
+            width=3,
+            height=1
+        )
+        exit_button.place(x=root.winfo_screenwidth() - 50, y=10)
+        
         # Устанавливаем обработчик для корректного завершения приложения
         def on_closing():
             logger.info("Завершение работы приложения")
-            root.destroy()
+            confirm_exit()
         
         root.protocol("WM_DELETE_WINDOW", on_closing)
         

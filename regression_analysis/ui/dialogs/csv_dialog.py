@@ -44,12 +44,16 @@ class CSVSettingsDialog:
         # Создаем новое окно
         self.window = tk.Toplevel(parent)
         self.window.title("Настройки CSV файла")
-        self.window.geometry("500x500")
+        
+        # Устанавливаем полноэкранный режим
+        self.window.attributes('-fullscreen', True)
+        
+        # Добавляем возможность выхода из полноэкранного режима по клавише Escape
+        self.window.bind('<Escape>', lambda event: self.toggle_fullscreen())
         
         # Применяем тему к окну
         apply_theme(self.window)
         
-        center_window(self.window, 500, 500)
         self.window.grab_set()  # Делаем окно модальным
         
         # Сохраняем текущие настройки для повторного использования
@@ -72,6 +76,21 @@ class CSVSettingsDialog:
         # Основной фрейм настроек
         settings_frame = tk.Frame(self.window, padx=20, pady=10, bg=DARK_THEME['primary'])
         settings_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Добавляем кнопку выхода в правый верхний угол
+        exit_button = tk.Button(
+            self.window, 
+            text="✕", 
+            font=("Arial", 14, "bold"),
+            bg=DARK_THEME['error'],
+            fg=DARK_THEME['text_light'],
+            activebackground=DARK_THEME['bg_light'],
+            activeforeground=DARK_THEME['neutral'],
+            command=self.confirm_exit,
+            width=3,
+            height=1
+        )
+        exit_button.place(x=self.window.winfo_screenwidth() - 50, y=10)
         
         # Создаем предпросмотр содержимого файла
         preview_frame = tk.LabelFrame(settings_frame, text="Предпросмотр файла", padx=10, pady=10,
@@ -844,3 +863,14 @@ class CSVSettingsDialog:
                             activebackground=DARK_THEME['accent'], 
                             activeforeground=DARK_THEME['text_light'])
         dummy_button.pack(side=tk.RIGHT, padx=10)
+
+    def toggle_fullscreen(self):
+        """Переключает полноэкранный режим окна."""
+        self.window.attributes('-fullscreen', not self.window.attributes('-fullscreen'))
+
+    def confirm_exit(self):
+        """Обработчик события нажатия на кнопку выхода."""
+        # Показываем диалог подтверждения выхода
+        response = messagebox.askyesno("Подтверждение выхода", "Вы уверены, что хотите выйти без сохранения изменений?")
+        if response:
+            self.window.destroy()
