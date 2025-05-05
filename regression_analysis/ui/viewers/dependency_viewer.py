@@ -22,6 +22,7 @@ from utils.visualization.dependency_plots import (
     create_heatmap_plot,
     create_partial_dependence_plot
 )
+from ui.components.theme_manager import DARK_THEME, get_chart_colors
 
 
 class DependencyViewer(ttk.Frame):
@@ -57,6 +58,9 @@ class DependencyViewer(ttk.Frame):
         self.age_groups = age_groups if age_groups else []
         self.y = y
         
+        # Применяем темную тему для matplotlib
+        self.apply_dark_theme_to_matplotlib()
+        
         # Сохраняем данные о годах
         self.years = list(range(self.min_year, self.max_year + 1))
         
@@ -86,6 +90,31 @@ class DependencyViewer(ttk.Frame):
             if len(self.feature_names) > 1:
                 self.z_var.set(self.feature_names[1])
     
+    def apply_dark_theme_to_matplotlib(self):
+        """Применяет темную тему к графикам matplotlib"""
+        plt.style.use('dark_background')
+        
+        # Настраиваем цвета в соответствии с DARK_THEME
+        plt.rcParams['figure.facecolor'] = DARK_THEME['primary']
+        plt.rcParams['axes.facecolor'] = DARK_THEME['bg']
+        plt.rcParams['axes.edgecolor'] = DARK_THEME['neutral']
+        plt.rcParams['axes.labelcolor'] = DARK_THEME['neutral']
+        plt.rcParams['axes.titlecolor'] = DARK_THEME['text_light']
+        plt.rcParams['xtick.color'] = DARK_THEME['neutral']
+        plt.rcParams['ytick.color'] = DARK_THEME['neutral']
+        plt.rcParams['text.color'] = DARK_THEME['neutral']
+        plt.rcParams['grid.color'] = DARK_THEME['bg_light']
+        plt.rcParams['grid.alpha'] = 0.3
+        
+        # Настраиваем цвета для графиков
+        plt.rcParams['lines.color'] = DARK_THEME['accent']
+        plt.rcParams['patch.facecolor'] = DARK_THEME['accent']
+        plt.rcParams['boxplot.boxprops.color'] = DARK_THEME['neutral']
+        plt.rcParams['boxplot.capprops.color'] = DARK_THEME['neutral']
+        plt.rcParams['boxplot.flierprops.color'] = DARK_THEME['neutral']
+        plt.rcParams['boxplot.flierprops.markeredgecolor'] = DARK_THEME['neutral']
+        plt.rcParams['boxplot.whiskerprops.color'] = DARK_THEME['neutral']
+        
     def _get_feature_names(self):
         """
         Получает список имен признаков из данных, исключая ВВП.
@@ -147,13 +176,23 @@ class DependencyViewer(ttk.Frame):
         self.graph_frame = ttk.Frame(main_frame)
         self.graph_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        # Инициализируем пустой график
-        self.figure = Figure(figsize=(10, 6), dpi=100)
+        # Инициализируем пустой график с горизонтальным соотношением сторон и темной темой
+        self.figure = Figure(figsize=(10, 5.5), dpi=100, facecolor=DARK_THEME['primary'])
+        
+        # Создаем холст для отображения графика
         self.canvas = FigureCanvasTkAgg(self.figure, self.graph_frame)
-        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        canvas_widget = self.canvas.get_tk_widget()
+        canvas_widget.pack(fill=tk.BOTH, expand=True)
         
         # Добавляем тулбар для графика
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.graph_frame)
+        self.toolbar.config(background=DARK_THEME['primary'])
+        for button in self.toolbar.winfo_children():
+            if isinstance(button, tk.Button):
+                button.config(background=DARK_THEME['bg_light'], foreground=DARK_THEME['neutral'],
+                             activebackground=DARK_THEME['accent'], activeforeground=DARK_THEME['text_light'])
+            elif isinstance(button, tk.Label):
+                button.config(background=DARK_THEME['primary'], foreground=DARK_THEME['neutral'])
         self.toolbar.update()
         
         # Инициализируем виджеты для выбора переменных
@@ -176,15 +215,18 @@ class DependencyViewer(ttk.Frame):
             ttk.Label(self.variables_frame, text="Ось X:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
             x_cb = ttk.Combobox(self.variables_frame, textvariable=self.x_var, values=self.feature_names, state="readonly")
             x_cb.grid(row=0, column=1, sticky='ew', padx=5, pady=2)
+            self._style_combobox(x_cb)
             
             ttk.Label(self.variables_frame, text="Ось Y:").grid(row=1, column=0, sticky='w', padx=5, pady=2)
             y_cb = ttk.Combobox(self.variables_frame, textvariable=self.y_var, values=[self.graph_variables[0]], state="readonly")
             y_cb.grid(row=1, column=1, sticky='ew', padx=5, pady=2)
+            self._style_combobox(y_cb)
             
             # Выбор года для анализа
             ttk.Label(self.variables_frame, text="Год:").grid(row=2, column=0, sticky='w', padx=5, pady=2)
             years_cb = ttk.Combobox(self.variables_frame, textvariable=self.current_year, values=[str(y) for y in self.years], state="readonly")
             years_cb.grid(row=2, column=1, sticky='ew', padx=5, pady=2)
+            self._style_combobox(years_cb)
             
         elif plot_type == "multi_scatter":
             # Для множественной диаграммы нужны несколько X и один Y
@@ -194,25 +236,30 @@ class DependencyViewer(ttk.Frame):
             for i, feature in enumerate(self.feature_names):
                 var = tk.BooleanVar(value=False)
                 self.feature_vars.append(var)
-                ttk.Checkbutton(self.variables_frame, text=feature, variable=var).grid(row=i+1, column=0, sticky='w', padx=15, pady=2)
+                cb = ttk.Checkbutton(self.variables_frame, text=feature, variable=var)
+                cb.grid(row=i+1, column=0, sticky='w', padx=15, pady=2)
             
             ttk.Label(self.variables_frame, text="Ось Y:").grid(row=len(self.feature_names)+1, column=0, sticky='w', padx=5, pady=2)
             y_cb = ttk.Combobox(self.variables_frame, textvariable=self.y_var, values=[self.graph_variables[0]], state="readonly")
             y_cb.grid(row=len(self.feature_names)+1, column=1, sticky='ew', padx=5, pady=2)
+            self._style_combobox(y_cb)
             
         elif plot_type == "3d":
             # Для 3D графика нужны X, Y, Z
             ttk.Label(self.variables_frame, text="Ось X:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
             x_cb = ttk.Combobox(self.variables_frame, textvariable=self.x_var, values=self.feature_names, state="readonly")
             x_cb.grid(row=0, column=1, sticky='ew', padx=5, pady=2)
+            self._style_combobox(x_cb)
             
             ttk.Label(self.variables_frame, text="Ось Y:").grid(row=1, column=0, sticky='w', padx=5, pady=2)
             y_cb = ttk.Combobox(self.variables_frame, textvariable=self.y_var, values=[self.graph_variables[0]], state="readonly")
             y_cb.grid(row=1, column=1, sticky='ew', padx=5, pady=2)
+            self._style_combobox(y_cb)
             
             ttk.Label(self.variables_frame, text="Ось Z:").grid(row=2, column=0, sticky='w', padx=5, pady=2)
             z_cb = ttk.Combobox(self.variables_frame, textvariable=self.z_var, values=self.feature_names, state="readonly")
             z_cb.grid(row=2, column=1, sticky='ew', padx=5, pady=2)
+            self._style_combobox(z_cb)
             
         elif plot_type == "heatmap":
             # Для тепловой карты не нужны дополнительные параметры
@@ -223,15 +270,61 @@ class DependencyViewer(ttk.Frame):
             ttk.Label(self.variables_frame, text="Выберите переменную:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
             x_cb = ttk.Combobox(self.variables_frame, textvariable=self.x_var, values=self.feature_names, state="readonly")
             x_cb.grid(row=0, column=1, sticky='ew', padx=5, pady=2)
+            self._style_combobox(x_cb)
             
             ttk.Label(self.variables_frame, text="Модель:").grid(row=1, column=0, sticky='w', padx=5, pady=2)
             model_cb = ttk.Combobox(self.variables_frame, values=list(self.model_dict.keys()), state="readonly")
             model_cb.grid(row=1, column=1, sticky='ew', padx=5, pady=2)
             model_cb.current(0)
+            self._style_combobox(model_cb)
             self.model_var = model_cb
+    
+    def _style_combobox(self, combobox):
+        """
+        Дополнительная стилизация выпадающих списков для лучшей видимости.
+        
+        Args:
+            combobox (ttk.Combobox): Виджет выпадающего списка
+        """
+        # Устанавливаем цвета напрямую для каждого combobox
+        combobox.configure(
+            foreground=DARK_THEME['text_light'],
+            background=DARK_THEME['bg'],
+            font=("Arial", 10, "bold")
+        )
+        
+        # Для повышения контрастности выпадающих списков используем более светлый фон
+        combobox.option_add('*TCombobox*Listbox.Background', DARK_THEME['bg_light'])
+        combobox.option_add('*TCombobox*Listbox.Foreground', '#FFFFFF')  # Белый текст
+        combobox.option_add('*TCombobox*Listbox.selectBackground', DARK_THEME['accent'])
+        combobox.option_add('*TCombobox*Listbox.Font', ('Arial', 10, 'bold'))
+        
+        # Увеличиваем высоту списка для лучшей читаемости
+        combobox.configure(height=10)
+        
+        # Добавим прямое изменение цвета поля для лучшей видимости
+        try:
+            # Находим поле ввода внутри combobox
+            entry = combobox.nametowidget(combobox.winfo_children()[0])
+            # Изменяем его цвета напрямую, если это возможно
+            entry.configure(
+                readonlybackground=DARK_THEME['bg_light'],  # Более светлый фон для контраста
+                fg=DARK_THEME['text_light'],  # Светлый текст
+                insertbackground=DARK_THEME['accent']  # Цвет курсора
+            )
+        except (KeyError, IndexError, AttributeError, tk.TclError):
+            # Если не удалось найти или настроить entry, игнорируем
+            pass
     
     def on_plot_type_change(self):
         """Обработчик изменения типа графика."""
+        # Очищаем текущий график при смене типа
+        plt.close(self.figure)
+        self.figure = Figure(figsize=(10, 5.5), dpi=100, facecolor=DARK_THEME['primary'])
+        self.canvas.figure = self.figure
+        self.canvas.draw()
+        
+        # Обновляем элементы управления
         self.setup_variable_controls()
     
     def get_selected_features(self):
@@ -254,8 +347,10 @@ class DependencyViewer(ttk.Frame):
         """
         plot_type = self.plot_type.get()
         
-        # Очищаем текущий график
-        self.figure.clear()
+        # Полностью удаляем предыдущий график и все его содержимое
+        plt.close(self.figure)
+        self.figure = Figure(figsize=(10, 5.5), dpi=100, facecolor=DARK_THEME['primary'])
+        self.canvas.figure = self.figure
         
         # Общие данные
         # ВВП всегда на оси Y для обычных графиков
@@ -269,14 +364,21 @@ class DependencyViewer(ttk.Frame):
                 
                 x_data = self.df[x_feature]
                 
-                fig = create_scatter_plot(
+                # Создаем график и передаем нашу существующую фигуру
+                create_scatter_plot(
                     x_data=x_data,
                     y_data=y_data,
                     feature_name=x_feature,
                     year_data=self.years,
-                    highlight_year=year
+                    highlight_year=year,
+                    fig=self.figure
                 )
-                self.figure = fig
+                
+                # Применяем темную тему к созданному графику
+                self.apply_dark_theme_to_figure(self.figure)
+                
+                # Увеличиваем отступы для диаграммы рассеяния, чтобы были видны метки на нижней оси
+                self.figure.subplots_adjust(bottom=0.18, left=0.12, right=0.92, top=0.85)
                 
             elif plot_type == "multi_scatter":
                 # Множественная диаграмма рассеяния
@@ -288,13 +390,24 @@ class DependencyViewer(ttk.Frame):
                 
                 X_selected = self.df[selected_features]
                 
-                fig = create_multi_scatter_plot(
+                # Создаем график множественной диаграммы
+                new_fig = create_multi_scatter_plot(
                     X=X_selected,
                     y=y_data,
                     feature_names=selected_features,
                     target_name="ВВП"
                 )
-                self.figure = fig
+                
+                # Целиком заменяем нашу фигуру на новую
+                plt.close(self.figure)  # Закрываем старую фигуру
+                self.figure = new_fig
+                self.canvas.figure = new_fig
+                
+                # Применяем темную тему к созданному графику
+                self.apply_dark_theme_to_figure(self.figure)
+                
+                # Увеличиваем отступы для множественной диаграммы
+                self.figure.subplots_adjust(bottom=0.18, left=0.12, right=0.92, top=0.85)
                 
             elif plot_type == "3d":
                 # 3D график
@@ -307,14 +420,25 @@ class DependencyViewer(ttk.Frame):
                 
                 X_selected = self.df[[x_feature, z_feature]]
                 
-                fig = create_3d_plot(
+                # Создаем 3D график
+                new_fig = create_3d_plot(
                     X=X_selected,
                     y=y_data,
                     feature_names=[x_feature, z_feature],
                     target_name="ВВП",
                     years=self.years
                 )
-                self.figure = fig
+                
+                # Целиком заменяем фигуру на новую
+                plt.close(self.figure)  # Закрываем старую фигуру
+                self.figure = new_fig
+                self.canvas.figure = new_fig
+                
+                # Применяем темную тему к созданному графику
+                self.apply_dark_theme_to_figure(self.figure)
+                
+                # Корректируем положение 3D графика
+                self.figure.subplots_adjust(bottom=0.18, left=0.12, right=0.92, top=0.85)
                 
             elif plot_type == "heatmap":
                 # Тепловая карта корреляций
@@ -322,11 +446,22 @@ class DependencyViewer(ttk.Frame):
                 data_for_corr = self.df[self.feature_names].copy()
                 data_for_corr["ВВП"] = y_data
                 
-                fig = create_heatmap_plot(
+                # Создаем тепловую карту
+                new_fig = create_heatmap_plot(
                     data=data_for_corr,
                     title="Корреляции между экономическими показателями"
                 )
-                self.figure = fig
+                
+                # Целиком заменяем фигуру на новую
+                plt.close(self.figure)  # Закрываем старую фигуру
+                self.figure = new_fig
+                self.canvas.figure = new_fig
+                
+                # Применяем темную тему к созданному графику
+                self.apply_dark_theme_to_figure(self.figure)
+                
+                # Корректируем положение тепловой карты
+                self.figure.subplots_adjust(bottom=0.18, left=0.15, right=0.92, top=0.85)
                 
             elif plot_type == "partial_dependence":
                 # График частичной зависимости
@@ -378,18 +513,79 @@ class DependencyViewer(ttk.Frame):
                                          f"Признак {x_feature} не используется в модели {model_name}")
                     return
                 
-                fig = create_partial_dependence_plot(
+                # Создаем график частичной зависимости
+                new_fig = create_partial_dependence_plot(
                     model=sklearn_model,
                     X=X_model,
                     feature_idx=feature_idx,
                     feature_name=x_feature,
                     target_name="ВВП"
                 )
-                self.figure = fig
+                
+                # Целиком заменяем фигуру на новую
+                plt.close(self.figure)  # Закрываем старую фигуру
+                self.figure = new_fig
+                self.canvas.figure = new_fig
+                
+                # Применяем темную тему к созданному графику
+                self.apply_dark_theme_to_figure(self.figure)
+                
+                # Корректируем положение графика частичной зависимости
+                self.figure.subplots_adjust(bottom=0.18, left=0.12, right=0.92, top=0.85)
             
-            # Обновляем холст
-            self.canvas.figure = self.figure
+            # Обновляем холст с корректным размером
+            # Убедимся, что текущий размер фигуры соответствует размеру виджета
+            w, h = self.graph_frame.winfo_width(), self.graph_frame.winfo_height()
+            if w > 1 and h > 1:  # Если размеры уже известны
+                # Устанавливаем горизонтальное соотношение сторон для автоматического масштабирования
+                desired_width = w/90  # Уменьшаем ширину для лучшей видимости
+                desired_height = desired_width / 1.8  # Увеличиваем относительную высоту (меньше 2:1)
+                self.figure.set_size_inches(desired_width, desired_height)
+                
+                # Добавляем дополнительный отступ снизу для всех типов графиков
+                self.figure.subplots_adjust(bottom=0.18, right=0.92)
+                
+            # Перерисовываем холст
             self.canvas.draw()
             
         except Exception as e:
-            messagebox.showerror("Ошибка", f"Произошла ошибка при создании графика: {str(e)}") 
+            messagebox.showerror("Ошибка", f"Произошла ошибка при создании графика: {str(e)}")
+    
+    def apply_dark_theme_to_figure(self, fig):
+        """Применяет темную тему к уже созданной фигуре matplotlib"""
+        fig.set_facecolor(DARK_THEME['primary'])
+        
+        # Применяем темную тему к каждой оси
+        for ax in fig.get_axes():
+            ax.set_facecolor(DARK_THEME['bg'])
+            
+            # Обновляем цвета для границ
+            for spine in ax.spines.values():
+                spine.set_color(DARK_THEME['neutral'])
+            
+            # Обновляем цвета для меток осей, делений и заголовка
+            ax.tick_params(colors=DARK_THEME['neutral'])
+            
+            # Обновляем цвета для текстовых элементов
+            if ax.get_xlabel():
+                ax.xaxis.label.set_color(DARK_THEME['neutral'])
+            if ax.get_ylabel():
+                ax.yaxis.label.set_color(DARK_THEME['neutral'])
+            if ax.get_title():
+                ax.title.set_color(DARK_THEME['text_light'])
+            
+            # Обновляем цвета для сетки
+            ax.grid(color=DARK_THEME['bg_light'], linestyle='--', alpha=0.3)
+            
+            # Обновляем цвета для текстовых аннотаций
+            for child in ax.get_children():
+                if isinstance(child, plt.Text):
+                    child.set_color(DARK_THEME['neutral'])
+            
+            # Обновляем цвета для легенды, если она есть
+            legend = ax.get_legend()
+            if legend:
+                legend.get_frame().set_facecolor(DARK_THEME['bg'])
+                legend.get_frame().set_edgecolor(DARK_THEME['neutral'])
+                for text in legend.get_texts():
+                    text.set_color(DARK_THEME['neutral']) 

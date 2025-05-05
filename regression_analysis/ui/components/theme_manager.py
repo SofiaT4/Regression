@@ -107,6 +107,31 @@ def _apply_ttk_styles(root):
                    lightcolor=CURRENT_THEME['accent'],
                    darkcolor=CURRENT_THEME['accent'])
     
+    # Combobox (выпадающие списки)
+    style.configure("TCombobox",
+                  background=CURRENT_THEME['bg'],
+                  foreground=CURRENT_THEME['text_light'],
+                  fieldbackground=CURRENT_THEME['bg'],
+                  selectbackground=CURRENT_THEME['accent'],
+                  selectforeground=CURRENT_THEME['text_light'],
+                  arrowcolor=CURRENT_THEME['text_light'],
+                  bordercolor=CURRENT_THEME['border'])
+    
+    # Применяем стили к отдельным компонентам Combobox
+    style.map('TCombobox', 
+             fieldbackground=[('readonly', CURRENT_THEME['bg'])],
+             background=[('readonly', CURRENT_THEME['bg']),
+                        ('active', CURRENT_THEME['bg_light'])],
+             foreground=[('readonly', CURRENT_THEME['text_light'])],
+             selectbackground=[('readonly', CURRENT_THEME['accent'])],
+             selectforeground=[('readonly', CURRENT_THEME['text_light'])])
+    
+    # Настраиваем выпадающий список Combobox
+    root.option_add('*TCombobox*Listbox.background', CURRENT_THEME['bg'])
+    root.option_add('*TCombobox*Listbox.foreground', CURRENT_THEME['text_light'])
+    root.option_add('*TCombobox*Listbox.selectBackground', CURRENT_THEME['accent'])
+    root.option_add('*TCombobox*Listbox.selectForeground', CURRENT_THEME['text_light'])
+    
     # Рамки
     style.configure("TFrame", background=CURRENT_THEME['primary'])
     style.configure("TLabelframe", 
@@ -246,6 +271,44 @@ def get_chart_colors():
         'boxplot.medianprops.color': CURRENT_THEME['accent'],
         'scatter.edgecolors': CURRENT_THEME['neutral']
     }
+
+def get_text_color_for_background(val, colormap_name='coolwarm'):
+    """
+    Определяет оптимальный цвет текста для фона на основе значения и цветовой карты.
+    
+    Для светлого фона возвращает темный текст, для темного фона - светлый текст.
+    
+    Args:
+        val (float): Значение для нормализации в диапазоне цветовой карты.
+            Для карты 'coolwarm' предполагается диапазон от -1 до 1.
+        colormap_name (str): Название цветовой карты matplotlib.
+    
+    Returns:
+        str: Цвет текста ('black' или 'white')
+    """
+    import matplotlib.pyplot as plt
+    
+    # Получаем объект цветовой карты
+    cmap = plt.cm.get_cmap(colormap_name)
+    
+    # Нормализуем значение к диапазону 0-1 в зависимости от карты
+    if colormap_name == 'coolwarm':
+        # Для coolwarm ожидаем значения от -1 до 1
+        norm_val = (val + 1) / 2
+    else:
+        # Для других карт просто ограничиваем диапазон от 0 до 1
+        norm_val = max(0, min(1, val))
+    
+    # Получаем RGB цвет фона
+    bg_color = cmap(norm_val)[:3]  # Первые три значения - это RGB
+    
+    # Рассчитываем яркость цвета по формуле (0.299*R + 0.587*G + 0.114*B)
+    brightness = 0.299 * bg_color[0] + 0.587 * bg_color[1] + 0.114 * bg_color[2]
+    
+    # Возвращаем черный или белый в зависимости от яркости
+    # Если яркость > 0.5, фон светлый, используем черный текст
+    # Если яркость <= 0.5, фон темный, используем белый текст
+    return 'black' if brightness > 0.5 else 'white'
 
 def apply_chart_style(plt):
     """

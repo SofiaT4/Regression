@@ -19,6 +19,10 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics import r2_score
 from sklearn.inspection import partial_dependence
 from matplotlib.gridspec import GridSpec
+from matplotlib.colors import LinearSegmentedColormap, to_rgb
+import matplotlib.colors as mcolors
+from ui.components.theme_manager import get_text_color_for_background, DARK_THEME
+import matplotlib.patheffects as PathEffects
 
 def create_scatter_plot(
     x_data,
@@ -50,9 +54,9 @@ def create_scatter_plot(
     """
     import matplotlib.patches as mpatches
     
-    # Создаем фигуру
+    # Создаем фигуру с горизонтальным соотношением сторон
     if fig is None:
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(10, 5))
     else:
         ax = fig.gca()
     
@@ -63,7 +67,7 @@ def create_scatter_plot(
             x_data, y_data, 
             c=year_data, 
             cmap='viridis', 
-            s=80, 
+            s=60, 
             alpha=0.7, 
             edgecolors='w'
         )
@@ -80,7 +84,7 @@ def create_scatter_plot(
                 
                 ax.scatter(
                     x_highlight, y_highlight, 
-                    s=120, 
+                    s=100, 
                     edgecolors='red', 
                     facecolors='none', 
                     linewidth=2, 
@@ -88,10 +92,10 @@ def create_scatter_plot(
                 )
         
         # Добавляем цветовую шкалу для годов
-        cbar = fig.colorbar(scatter, ax=ax, pad=0.01)
-        cbar.set_label('Год', fontsize=12)
+        cbar = fig.colorbar(scatter, ax=ax, pad=0.01, shrink=0.7)
+        cbar.set_label('Год', fontsize=10)
     else:
-        ax.scatter(x_data, y_data, color='blue', s=80, alpha=0.7, edgecolors='w')
+        ax.scatter(x_data, y_data, color='blue', s=60, alpha=0.7, edgecolors='w')
     
     # Добавляем линию тренда
     if fit_polynomial:
@@ -116,7 +120,7 @@ def create_scatter_plot(
         y_pred = model.predict(X_range)
         
         # Строим линию тренда
-        ax.plot(x_range, y_pred, 'r-', linewidth=2)
+        ax.plot(x_range, y_pred, 'r-', linewidth=1.5)
         
         # Показываем уравнение регрессии
         if show_equation:
@@ -130,40 +134,40 @@ def create_scatter_plot(
                 else:
                     equation += f" + {coef:.2f}x^{i+1}"
             
-            ax.text(0.02, 0.95, equation, transform=ax.transAxes, fontsize=12,
+            ax.text(0.02, 0.95, equation, transform=ax.transAxes, fontsize=10,
                   verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
     else:
         # Линейная регрессия
         coef = np.polyfit(x_data, y_data, 1)
         poly1d_fn = np.poly1d(coef)
-        ax.plot(x_data, poly1d_fn(x_data), 'r-', linewidth=2)
+        ax.plot(x_data, poly1d_fn(x_data), 'r-', linewidth=1.5)
         
         # Показываем уравнение регрессии
         if show_equation:
             equation = f"y = {coef[1]:.2f} + {coef[0]:.2f}x"
-            ax.text(0.02, 0.95, equation, transform=ax.transAxes, fontsize=12,
+            ax.text(0.02, 0.95, equation, transform=ax.transAxes, fontsize=10,
                   verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
     
     # Добавляем R²
     y_pred = poly1d_fn(x_data) if not fit_polynomial else model.predict(X)
     r2 = r2_score(y_data, y_pred)
-    ax.text(0.02, 0.89, f"R² = {r2:.3f}", transform=ax.transAxes, fontsize=12,
+    ax.text(0.02, 0.89, f"R² = {r2:.3f}", transform=ax.transAxes, fontsize=10,
           verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
     
     # Настраиваем оси и заголовок
-    ax.set_xlabel(feature_name, fontsize=14)
-    ax.set_ylabel("ВВП", fontsize=14)
-    ax.set_title(f"Зависимость ВВП от {feature_name}", fontsize=16)
+    ax.set_xlabel(feature_name, fontsize=11)
+    ax.set_ylabel("ВВП", fontsize=11)
+    ax.set_title(f"Зависимость ВВП от {feature_name}", fontsize=12)
     
     # Добавляем сетку
     ax.grid(True, linestyle='--', alpha=0.7)
     
     # Если есть выделенный год, добавляем легенду
     if year_data is not None and highlight_year is not None and highlight_year in year_data:
-        ax.legend()
+        ax.legend(fontsize=9)
     
     # Улучшаем внешний вид
-    fig.tight_layout()
+    fig.tight_layout(pad=0.5)
     
     return fig
 
@@ -182,13 +186,14 @@ def create_multi_scatter_plot(X, y, feature_names, target_name="GDP"):
     """
     import matplotlib.pyplot as plt
     from matplotlib.gridspec import GridSpec
+    from sklearn.linear_model import LinearRegression
     
     # Определяем размер сетки графиков
     n_features = len(feature_names)
     
     if n_features == 1:
-        # Если только один признак, создаем обычную диаграмму рассеяния
-        fig, ax = plt.subplots(figsize=(10, 6))
+        # Если только один признак, создаем обычную диаграмму рассеяния с горизонтальным соотношением сторон
+        fig, ax = plt.subplots(figsize=(10, 5))
         ax.scatter(X[feature_names[0]], y, color='blue', alpha=0.6, edgecolors='white')
         
         # Добавляем линию тренда
@@ -198,82 +203,78 @@ def create_multi_scatter_plot(X, y, feature_names, target_name="GDP"):
         ax.plot(x_range, poly1d_fn(x_range), 'r--', linewidth=2)
         
         # Настраиваем оси
-        ax.set_xlabel(feature_names[0], fontsize=14)
-        ax.set_ylabel(target_name, fontsize=14)
-        ax.set_title(f'Зависимость {target_name} от {feature_names[0]}', fontsize=16)
+        ax.set_xlabel(feature_names[0], fontsize=12)
+        ax.set_ylabel(target_name, fontsize=12)
+        ax.set_title(f'Зависимость {target_name} от {feature_names[0]}', fontsize=14)
         ax.grid(True, linestyle='--', alpha=0.7)
         
         # Добавляем формулу тренда
         equation = f"y = {coef[0]:.2f}x + {coef[1]:.2f}"
-        ax.text(0.05, 0.95, equation, transform=ax.transAxes, fontsize=12, 
+        ax.text(0.05, 0.95, equation, transform=ax.transAxes, fontsize=10, 
                verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
     else:
-        # Создаем сетку графиков
-        rows = (n_features + 1) // 2  # Округление вверх для нечетного числа признаков
-        cols = min(2, n_features)  # Максимум 2 колонки
+        # Создаем единую модель множественной регрессии для всех выбранных признаков
+        # с горизонтальным соотношением сторон
+        fig, ax = plt.subplots(figsize=(10, 5))
         
-        if n_features > 4:
-            # Если признаков больше 4, размещаем в 2 колонки
-            rows = (n_features + 1) // 2
-            cols = 2
-        elif n_features == 4:
-            # Для 4 признаков делаем сетку 2x2
-            rows = 2
-            cols = 2
-        elif n_features == 3:
-            # Для 3 признаков делаем сетку 2x2, но используем только 3 ячейки
-            rows = 2
-            cols = 2
-        else:  # n_features == 2
-            # Для 2 признаков делаем сетку 1x2
-            rows = 1
-            cols = 2
+        # Обучаем модель множественной регрессии
+        model = LinearRegression()
+        model.fit(X, y)
         
-        # Создаем фигуру и сетку
-        fig = plt.figure(figsize=(cols * 6, rows * 4))
+        # Подготавливаем данные для графика
+        y_pred = model.predict(X)
         
-        if n_features == 3:
-            # Для 3 признаков используем GridSpec для более гибкой компоновки
-            gs = GridSpec(2, 2, figure=fig)
-            axes = [
-                fig.add_subplot(gs[0, 0]),
-                fig.add_subplot(gs[0, 1]),
-                fig.add_subplot(gs[1, :])
-            ]
+        # Строим график фактических и предсказанных значений
+        ax.scatter(y, y_pred, color='blue', alpha=0.6, edgecolors='white')
+        
+        # Добавляем диагональную линию (идеальный прогноз)
+        min_val = min(min(y), min(y_pred))
+        max_val = max(max(y), max(y_pred))
+        ax.plot([min_val, max_val], [min_val, max_val], 'r--', linewidth=2)
+        
+        # Настраиваем оси
+        ax.set_xlabel(f'Фактический {target_name}', fontsize=11)
+        ax.set_ylabel(f'Предсказанный {target_name}', fontsize=11)
+        ax.set_title(f'Множественная регрессия: {target_name} и выбранные факторы', fontsize=12)
+        ax.grid(True, linestyle='--', alpha=0.7)
+        
+        # Добавляем формулу множественной регрессии, упрощаем для длинных формул
+        if n_features <= 3:
+            equation = f"y = {model.intercept_:.2f}"
+            for i, (coef, feature) in enumerate(zip(model.coef_, feature_names)):
+                equation += f" + {coef:.2f}·{feature}"
         else:
-            # Для остальных случаев обычная сетка
-            axes = [fig.add_subplot(rows, cols, i+1) for i in range(n_features)]
+            equation = f"y = {model.intercept_:.2f}"
+            for i, (coef, feature) in enumerate(zip(model.coef_, feature_names)):
+                if i < 2:  # Показываем только первые два коэффициента
+                    equation += f" + {coef:.2f}·{feature}"
+                elif i == 2:
+                    equation += " + ..."
+                    break
         
-        # Создаем графики для каждого признака
-        for i, feature in enumerate(feature_names):
-            if i < len(axes):  # Защита от выхода за границы списка осей
-                ax = axes[i]
-                
-                # Диаграмма рассеяния
-                ax.scatter(X[feature], y, color='blue', alpha=0.6, edgecolors='white')
-                
-                # Добавляем линию тренда
-                coef = np.polyfit(X[feature], y, 1)
-                poly1d_fn = np.poly1d(coef)
-                x_range = np.linspace(X[feature].min(), X[feature].max(), 100)
-                ax.plot(x_range, poly1d_fn(x_range), 'r--', linewidth=2)
-                
-                # Настраиваем оси
-                ax.set_xlabel(feature, fontsize=12)
-                ax.set_ylabel(target_name, fontsize=12)
-                ax.set_title(f'{target_name} vs {feature}', fontsize=14)
-                ax.grid(True, linestyle='--', alpha=0.7)
-                
-                # Добавляем формулу тренда
-                equation = f"y = {coef[0]:.2f}x + {coef[1]:.2f}"
-                ax.text(0.05, 0.95, equation, transform=ax.transAxes, fontsize=10, 
-                       verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
+        # Расчет R²
+        r2 = r2_score(y, y_pred)
+        
+        # Добавляем текст с уравнением и R² в верхний левый угол
+        font_size = min(10, max(7, 12 - n_features * 0.5))  # Уменьшаем размер шрифта при большом количестве признаков
+        ax.text(0.02, 0.98, equation, transform=ax.transAxes, fontsize=font_size, 
+               verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
+        ax.text(0.02, 0.90, f"R² = {r2:.3f}", transform=ax.transAxes, fontsize=font_size,
+               verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
+        
+        # Добавляем аннотацию о переменных с возможностью прокрутки при большом количестве
+        feature_text = "Переменные в модели:\n"
+        max_features_to_show = min(n_features, 5)  # Показываем максимум 5 переменных
+        for i, feature in enumerate(feature_names[:max_features_to_show]):
+            feature_text += f"{i+1}. {feature}\n"
+        if n_features > max_features_to_show:
+            feature_text += f"...и еще {n_features - max_features_to_show} переменных"
+        
+        ax.text(0.02, 0.82, feature_text, transform=ax.transAxes, fontsize=max(7, font_size-1),
+               verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
     
-    # Добавляем общий заголовок
-    fig.suptitle(f'Зависимость {target_name} от различных факторов', fontsize=16, y=1.02)
-    
-    # Улучшаем макет
-    fig.tight_layout()
+    # Улучшаем макет и уменьшаем отступы
+    fig.tight_layout(pad=0.5)
     return fig
 
 def create_3d_plot(X, y, feature_names, target_name="GDP", years=None):
@@ -290,7 +291,8 @@ def create_3d_plot(X, y, feature_names, target_name="GDP", years=None):
     Returns:
         matplotlib.figure.Figure: Объект фигуры с 3D графиком
     """
-    fig = plt.figure(figsize=(12, 8))
+    # Создаем горизонтальную фигуру
+    fig = plt.figure(figsize=(10, 5))
     ax = fig.add_subplot(111, projection='3d')
     
     # Извлекаем названия признаков
@@ -323,29 +325,29 @@ def create_3d_plot(X, y, feature_names, target_name="GDP", years=None):
     # Добавляем точки данных
     if years is not None and len(years) == len(y):
         # Используем годы для цветовой кодировки
-        scatter = ax.scatter(x1, x2, y, c=years, cmap='cool', s=50, alpha=0.8, edgecolors='w')
-        fig.colorbar(scatter, ax=ax, pad=0.1, label='Год')
+        scatter = ax.scatter(x1, x2, y, c=years, cmap='cool', s=40, alpha=0.8, edgecolors='w')
+        fig.colorbar(scatter, ax=ax, pad=0.1, label='Год', shrink=0.7)
     else:
-        ax.scatter(x1, x2, y, c='r', s=50, alpha=0.8, edgecolors='w')
+        ax.scatter(x1, x2, y, c='r', s=40, alpha=0.8, edgecolors='w')
     
-    # Добавляем название осей
-    ax.set_xlabel(x_feature, fontsize=14)
-    ax.set_ylabel(z_feature, fontsize=14)
-    ax.set_zlabel(target_name, fontsize=14)
+    # Добавляем название осей с меньшим шрифтом
+    ax.set_xlabel(x_feature, fontsize=11)
+    ax.set_ylabel(z_feature, fontsize=11)
+    ax.set_zlabel(target_name, fontsize=11)
     
     # Добавляем заголовок и формулу регрессии
     coefficients = model.coef_
     intercept = model.intercept_
     equation = f"{target_name} = {intercept:.2f} + {coefficients[0]:.2f}×{x_feature} + {coefficients[1]:.2f}×{z_feature}"
-    ax.set_title(f"Зависимость {target_name} от {x_feature} и {z_feature}\n{equation}", fontsize=16)
+    ax.set_title(f"Зависимость {target_name} от {x_feature} и {z_feature}\n{equation}", fontsize=12)
     
     # Добавляем информацию о R²
     y_pred = model.predict(X)
     r2 = r2_score(y, y_pred)
-    fig.text(0.02, 0.02, f"R² = {r2:.3f}", fontsize=12)
+    fig.text(0.02, 0.02, f"R² = {r2:.3f}", fontsize=10)
     
-    # Улучшаем внешний вид
-    fig.tight_layout()
+    # Улучшаем внешний вид и уменьшаем отступы
+    fig.tight_layout(pad=0.5)
     
     return fig
 
@@ -362,43 +364,89 @@ def create_heatmap_plot(data, title="Корреляционная матрица
     """
     import matplotlib.pyplot as plt
     import seaborn as sns
+    from matplotlib.colors import LinearSegmentedColormap
+    from ui.components.theme_manager import get_text_color_for_background, DARK_THEME
     
     # Рассчитываем корреляции
     corr_matrix = data.corr()
     
-    # Создаем фигуру
-    plt.figure(figsize=(10, 8))
+    # Создаем горизонтальную фигуру с увеличенным размером для лучшего размещения текста
+    plt.figure(figsize=(12, 8))
     fig = plt.gcf()
     
-    # Создаем тепловую карту с seaborn
+    # Создаем маску для верхнего треугольника
     mask = np.triu(np.ones_like(corr_matrix, dtype=bool))  # Маска для верхнего треугольника
     
-    # Создаем тепловую карту
+    # Получаем значения корреляции для использования в аннотациях
+    annot_values = corr_matrix.values
+    
+    # Создаем матрицу цветов текста для каждой ячейки используя функцию из theme_manager
+    text_colors = []
+    for i in range(annot_values.shape[0]):
+        row_colors = []
+        for j in range(annot_values.shape[1]):
+            if mask[i, j]:  # Если ячейка скрыта (верхний треугольник)
+                row_colors.append('black')  # Значение не важно, так как оно будет скрыто
+            else:
+                # Используем улучшенную функцию определения цвета текста
+                # Делаем цвета более контрастными
+                if annot_values[i, j] > 0.5 or annot_values[i, j] < -0.5:
+                    text_color = 'white'  # Для ярких цветов используем белый
+                else:
+                    text_color = 'black'  # Для светлых цветов используем черный
+                row_colors.append(text_color)
+        text_colors.append(row_colors)
+    
+    # Создаем свою цветовую карту с более яркими цветами для лучшего контраста
+    colors = ["navy", "royalblue", "lightgray", "lightcoral", "darkred"]
+    custom_cmap = LinearSegmentedColormap.from_list("custom_coolwarm", colors, N=100)
+    
+    # Создаем тепловую карту с адаптивными цветами для текста
     ax = sns.heatmap(
-        corr_matrix, 
-        annot=True,             # Добавляем числовые значения
-        fmt=".2f",              # Формат числовых значений (2 знака после запятой)
-        cmap="coolwarm",        # Цветовая карта
-        mask=mask,              # Маска для верхнего треугольника
-        linewidths=0.5,         # Ширина линий между ячейками
-        cbar_kws={"shrink": 0.8}, # Настройки цветовой шкалы
-        vmin=-1, vmax=1         # Диапазон значений
+        corr_matrix,
+        annot=True,              # Добавляем числовые значения
+        fmt=".2f",               # Формат числовых значений (2 знака после запятой)
+        cmap=custom_cmap,        # Используем кастомную цветовую карту для большего контраста
+        mask=mask,               # Маска для верхнего треугольника
+        linewidths=0.8,          # Увеличиваем ширину линий между ячейками для лучшей разделимости
+        cbar_kws={"shrink": 0.6, "pad": 0.03},  # Настройки цветовой шкалы
+        vmin=-1, vmax=1,         # Диапазон значений
+        annot_kws={
+            "size": 12,          # Увеличиваем размер текста для лучшей читаемости
+            "weight": "bold"     # Делаем текст жирным для лучшей видимости
+        }
     )
     
+    # Изменяем цвета текста для каждой аннотации
+    for i, j in zip(*np.where(~mask)):
+        # Получаем индекс текстового элемента
+        idx = i * len(corr_matrix) - int(i * (i + 1) / 2) + j - i - 1
+        
+        # Проверяем, что индекс в пределах допустимого диапазона
+        if idx < len(ax.texts):
+            text = ax.texts[idx]
+            text.set_color(text_colors[i][j])
+    
     # Настраиваем внешний вид
-    plt.title(title, fontsize=16, pad=20)
+    plt.title(title, fontsize=16, pad=15, color=DARK_THEME['text_light'])
     
-    # Поворачиваем метки осей для лучшей читаемости
-    plt.xticks(rotation=45, ha='right', fontsize=10)
-    plt.yticks(fontsize=10)
+    # Увеличиваем отступы и улучшаем метки осей
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Оставляем место внизу для меток
     
-    # Добавляем пояснение к графику
-    fig.text(0.02, 0.02, (
-        "Значения показывают коэффициенты корреляции Пирсона между переменными.\n"
-        "Диапазон от -1 (сильная отрицательная корреляция) до 1 (сильная положительная корреляция)."
-    ), fontsize=10, alpha=0.7)
+    # Поворачиваем метки осей и увеличиваем их для лучшей читаемости
+    # Используем 30 градусов для меток оси X для лучшей видимости
+    plt.xticks(rotation=30, ha='right', fontsize=12)
+    plt.yticks(fontsize=12)
     
-    plt.tight_layout()
+    # Увеличиваем нижнее поле фигуры, чтобы поместились все метки
+    plt.subplots_adjust(bottom=0.28, left=0.18)
+    
+    # Применяем стиль текста для меток осей для соответствия теме
+    for label in ax.get_xticklabels():
+        label.set_color(DARK_THEME['neutral'])
+    for label in ax.get_yticklabels():
+        label.set_color(DARK_THEME['neutral'])
+    
     return fig
 
 def create_partial_dependence_plot(model, X, feature_idx, feature_name, target_name="GDP"):
@@ -415,8 +463,8 @@ def create_partial_dependence_plot(model, X, feature_idx, feature_name, target_n
     Returns:
         matplotlib.figure.Figure: Объект фигуры с графиком частичной зависимости
     """
-    # Создаем фигуру
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Создаем горизонтальную фигуру
+    fig, ax = plt.subplots(figsize=(10, 5))
     
     # Рассчитываем частичную зависимость
     feature_values = X.iloc[:, feature_idx].unique() if hasattr(X, 'iloc') else np.unique(X[:, feature_idx])
@@ -451,8 +499,8 @@ def create_partial_dependence_plot(model, X, feature_idx, feature_name, target_n
         pdp_feature_values = pdp_feature_values[0]
     
     # Строим график
-    ax.plot(pdp_feature_values, pdp_values, '-', color='#1f77b4', linewidth=2.5)
-    ax.scatter(pdp_feature_values, pdp_values, color='#1f77b4', s=30)
+    ax.plot(pdp_feature_values, pdp_values, '-', color='#1f77b4', linewidth=2)
+    ax.scatter(pdp_feature_values, pdp_values, color='#1f77b4', s=25)
     
     # Добавляем полиномиальную аппроксимацию для более наглядного отображения тренда
     from sklearn.preprocessing import PolynomialFeatures
@@ -477,34 +525,29 @@ def create_partial_dependence_plot(model, X, feature_idx, feature_name, target_n
     y_plot = poly_model.predict(X_plot)
     
     # Рисуем линию тренда
-    ax.plot(X_plot, y_plot, '--', color='#ff7f0e', linewidth=2, label=f'Тренд (полином {poly_degree} степени)')
+    ax.plot(X_plot, y_plot, '--', color='#ff7f0e', linewidth=1.5, label=f'Тренд (полином {poly_degree} степени)')
     
     # Находим точки максимума и минимума на тренде
     max_idx = np.argmax(y_plot)
     min_idx = np.argmin(y_plot)
     
     # Отмечаем точки максимума и минимума
-    ax.scatter(X_plot[max_idx], y_plot[max_idx], color='green', s=80, marker='^', 
+    ax.scatter(X_plot[max_idx], y_plot[max_idx], color='green', s=60, marker='^', 
               label=f'Максимум: {X_plot[max_idx][0]:.2f}')
-    ax.scatter(X_plot[min_idx], y_plot[min_idx], color='red', s=80, marker='v', 
+    ax.scatter(X_plot[min_idx], y_plot[min_idx], color='red', s=60, marker='v', 
               label=f'Минимум: {X_plot[min_idx][0]:.2f}')
     
     # Добавляем среднее значение целевой переменной как горизонтальную линию
     ax.axhline(y=np.mean(pdp_values), color='gray', linestyle='--', alpha=0.7,
               label=f'Среднее {target_name}')
     
-    # Оформление графика
-    ax.set_xlabel(feature_name, fontsize=14)
-    ax.set_ylabel(f'{target_name}', fontsize=14)
-    ax.set_title(f'Частичная зависимость {target_name} от {feature_name}', fontsize=16)
+    # Оформление графика с меньшими размерами шрифтов
+    ax.set_xlabel(feature_name, fontsize=11)
+    ax.set_ylabel(f'{target_name}', fontsize=11)
+    ax.set_title(f'Частичная зависимость {target_name} от {feature_name}', fontsize=12)
     ax.grid(True, linestyle='--', alpha=0.7)
-    ax.legend(loc='best', fontsize=12)
+    ax.legend(loc='best', fontsize=9)
     
-    # Добавляем пояснение к графику
-    fig.text(0.02, 0.02, (
-        f"График показывает, как изменяется {target_name} при изменении {feature_name},\n"
-        f"когда все остальные признаки остаются постоянными."
-    ), fontsize=10, alpha=0.7)
-    
-    fig.tight_layout()
+    # Устанавливаем плотный макет
+    fig.tight_layout(pad=0.5)
     return fig 
