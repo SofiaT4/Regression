@@ -110,7 +110,7 @@ def main():
                 fg=DARK_THEME['text_light'],
                 activebackground=DARK_THEME['bg_light'],
                 activeforeground=DARK_THEME['neutral'],
-                command=root.destroy
+                command=lambda: sys.exit(0)
             ).pack(side=tk.LEFT, padx=10)
             
             # Кнопка "Нет"

@@ -224,4 +224,5 @@ class RegressionApp:
         """Отображает диалог подтверждения выхода и обрабатывает ответ."""
         response = messagebox.askyesno("Подтверждение выхода", "Вы действительно хотите выйти?")
         if response:
-            self.root.destroy()
+            import sys
+            sys.exit(0)  # Полное завершение приложения

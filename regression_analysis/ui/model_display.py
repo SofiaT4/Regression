@@ -36,8 +36,13 @@ class ModelDisplayFrame(tk.Frame):
         # Импортируем компоненты темы
         from ui.components.theme_manager import DARK_THEME, style_treeview_tags
         
-        # Сначала создаем родительский фрейм содержащий полосу прокрутки
+        # Сохраняем ссылку на родительское окно
         self.parent = parent
+        
+        # Сохраняем ссылку на функцию возврата
+        self.back_callback = back_callback
+        
+        # Создаем фрейм для прокручиваемого содержимого
         self.outer_frame = tk.Frame(parent, bg=DARK_THEME['primary'])
         self.outer_frame.pack(fill=tk.BOTH, expand=True)
         
@@ -80,7 +85,6 @@ class ModelDisplayFrame(tk.Frame):
         self.X_combined = X_combined
         self.y = y
         self.age_groups = age_groups
-        self.back_callback = back_callback
         self.graph_window = None
         
         # По умолчанию отображаем комбинированную модель, если доступна
@@ -110,7 +114,7 @@ class ModelDisplayFrame(tk.Frame):
             width=3,
             height=1
         )
-        exit_button.place(x=self.parent.winfo_screenwidth() - 50, y=10)
+        exit_button.place(x=self.parent.winfo_screenwidth() - 80, y=10)
         
         # Заголовок
         title_label = tk.Label(
@@ -144,7 +148,7 @@ class ModelDisplayFrame(tk.Frame):
         
         # Создаем вкладки для отображения результатов
         self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill=tk.BOTH, expand=True, pady=10)
+        self.notebook.pack(fill=tk.BOTH, expand=True, pady=(10, 5))
         
         # Вкладка "Регрессионная статистика"
         self.stats_frame = tk.Frame(self.notebook, padx=10, pady=10, bg=DARK_THEME['primary'])
@@ -158,14 +162,13 @@ class ModelDisplayFrame(tk.Frame):
         self.dependencies_frame = tk.Frame(self.notebook, padx=10, pady=10, bg=DARK_THEME['primary'])
         self.notebook.add(self.dependencies_frame, text="Зависимости")
         
-        # Настройка вкладок
-        self.setup_statistics_tab()
-        self.setup_graphs_tab()
-        self.setup_dependencies_tab()
-        
-        # Кнопки управления
+        # Кнопки управления - уменьшаем отступ, чтобы они были ближе к вкладкам
         button_frame = tk.Frame(self, bg=DARK_THEME['primary'])
-        button_frame.pack(fill=tk.X, pady=10)
+        button_frame.pack(fill=tk.X, pady=2)  # Уменьшаем отступ с 5 до 2
+        
+        # Добавляем тонкую разделительную линию над кнопками
+        separator = tk.Frame(self, height=1, bg=DARK_THEME['neutral'])
+        separator.pack(fill=tk.X, padx=20, pady=1)  # Уменьшаем отступ с 2 до 1
         
         # Кнопка экспорта отчета в PDF
         report_button = tk.Button(
@@ -178,7 +181,7 @@ class ModelDisplayFrame(tk.Frame):
             activeforeground=DARK_THEME['text_light'],
             command=self.export_report
         )
-        report_button.pack(side=tk.LEFT, padx=5, pady=5)
+        report_button.pack(side=tk.LEFT, padx=5, pady=2)
         
         # Кнопка экспорта графиков в PDF
         save_button = tk.Button(
@@ -191,7 +194,7 @@ class ModelDisplayFrame(tk.Frame):
             activeforeground=DARK_THEME['text_light'],
             command=self.export_current_model_plots
         )
-        save_button.pack(side=tk.LEFT, padx=5, pady=5)
+        save_button.pack(side=tk.LEFT, padx=5, pady=2)
         
         # Кнопка возврата к начальному экрану
         back_button = tk.Button(
@@ -202,10 +205,15 @@ class ModelDisplayFrame(tk.Frame):
             fg=DARK_THEME['neutral'],
             activebackground=DARK_THEME['accent'],
             activeforeground=DARK_THEME['text_light'],
-            command=self.handle_back_button  # Use the new handler
+            command=self.handle_back_button
         )
-        back_button.pack(side=tk.RIGHT, padx=5, pady=5)
+        back_button.pack(side=tk.RIGHT, padx=5, pady=2)
         
+        # Настройка вкладок
+        self.setup_statistics_tab()
+        self.setup_graphs_tab()
+        self.setup_dependencies_tab()
+    
     def update_scrollregion(self, event):
         """Обновляет регион прокрутки при изменении содержимого."""
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -538,7 +546,7 @@ class ModelDisplayFrame(tk.Frame):
           
         # Заполняем таблицу реальными данными
         self.populate_comparison_table()
-        
+    
     def export_comparison_to_csv(self):
         """Экспортирует таблицу сравнения моделей в CSV файл."""
         file_path = filedialog.asksaveasfilename(
@@ -571,7 +579,7 @@ class ModelDisplayFrame(tk.Frame):
                 
         except Exception as e:
             messagebox.showerror("Ошибка", f"Ошибка при экспорте сравнения:\n{str(e)}")
-
+    
     def setup_graphs_tab(self):
         """Настройка вкладки с графиками."""
         from ui.components.theme_manager import DARK_THEME
@@ -1449,6 +1457,6 @@ class ModelDisplayFrame(tk.Frame):
         response = messagebox.askyesno("Подтверждение выхода", "Вы действительно хотите выйти?")
         
         if response:
-            # Если пользователь подтвердил выход
-            self.destroy()
-            self.back_callback()
+            # Если пользователь подтвердил выход, завершаем приложение
+            import sys
+            sys.exit(0)  # Полное завершение приложения
