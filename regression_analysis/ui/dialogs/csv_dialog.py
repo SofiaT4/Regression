@@ -342,25 +342,35 @@ class CSVSettingsDialog:
             
             # Пробуем сразу показать структуру CSV с текущими настройками
             try:
+                # Читаем все строки вместо ограничения в 5 строк
                 sample_df = pd.read_csv(
                     self.file_path,
                     encoding=enc,
                     sep=sep,
-                    nrows=5,
                     decimal=self.decimal_var.get(),
                     thousands=self.thousands_var.get(),
                     engine='python',
                     on_bad_lines='skip'
                 )
                 
+                # Настраиваем pandas для отображения всех данных без сокращений
+                pd.set_option('display.max_columns', None)  # Показать все столбцы
+                pd.set_option('display.width', None)  # Автоматическая ширина
+                pd.set_option('display.max_rows', None)  # Показать все строки
+                pd.set_option('display.max_colwidth', None)  # Показать полное содержимое ячеек
+                
+                # Получаем размерность таблицы для отображения в русском формате
+                rows, cols = sample_df.shape
+                dimensions_info = f"{rows} строк x {cols} столбцов"
+                
                 # Показываем структуру таблицы
                 self.preview_text.config(state=tk.NORMAL, bg=DARK_THEME['bg'], fg=DARK_THEME['text_light'])
                 self.preview_text.delete(1.0, tk.END)
-                self.preview_text.insert(tk.END, "Структура CSV с текущими настройками:\n\n")
-                self.preview_text.insert(tk.END, str(sample_df.head()))
+                self.preview_text.insert(tk.END, f"Структура CSV с текущими настройками [{dimensions_info}]:\n\n")
+                self.preview_text.insert(tk.END, str(sample_df))
                 self.preview_text.config(state=tk.DISABLED)
                 
-                logger.info("Предпросмотр файла обновлен с отображением структуры CSV")
+                logger.info(f"Предпросмотр файла обновлен с отображением структуры CSV [{dimensions_info}]")
             except Exception as e:
                 # Если не удалось прочитать как CSV, показываем простой текст
                 logger.warning(f"Не удалось показать структуру CSV: {e}")
@@ -402,6 +412,12 @@ class CSVSettingsDialog:
             header = int(self.header_var.get()) if self.header_var.get().isdigit() else 0
         
         try:
+            # Настраиваем pandas для отображения всех данных без сокращений
+            pd.set_option('display.max_columns', None)  # Показать все столбцы
+            pd.set_option('display.width', None)  # Автоматическая ширина
+            pd.set_option('display.max_rows', None)  # Показать все строки
+            pd.set_option('display.max_colwidth', None)  # Показать полное содержимое ячеек
+            
             # Пробуем разные комбинации параметров для чтения файла
             success = False
             error_message = ""
@@ -873,4 +889,5 @@ class CSVSettingsDialog:
         # Показываем диалог подтверждения выхода
         response = messagebox.askyesno("Подтверждение выхода", "Вы уверены, что хотите выйти без сохранения изменений?")
         if response:
-            self.window.destroy()
+            import sys
+            sys.exit(0)  # Полное завершение приложения
