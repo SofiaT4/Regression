@@ -171,7 +171,7 @@ def create_scatter_plot(
     
     return fig
 
-def create_multi_scatter_plot(X, y, feature_names, target_name="GDP"):
+def create_multi_scatter_plot(X, y, feature_names, target_name="GDP", fig=None, ax=None):
     """
     Создает множественную диаграмму рассеяния для нескольких признаков.
     
@@ -180,6 +180,8 @@ def create_multi_scatter_plot(X, y, feature_names, target_name="GDP"):
         y (pd.Series): Целевая переменная
         feature_names (list): Список названий признаков
         target_name (str): Название целевой переменной
+        fig (matplotlib.figure.Figure): Существующая фигура (опционально)
+        ax (matplotlib.axes.Axes): Существующая ось (опционально)
     
     Returns:
         matplotlib.figure.Figure: Объект фигуры с множественной диаграммой рассеяния
@@ -191,9 +193,12 @@ def create_multi_scatter_plot(X, y, feature_names, target_name="GDP"):
     # Определяем размер сетки графиков
     n_features = len(feature_names)
     
+    # Создаем фигуру, если она не была передана
+    if fig is None or ax is None:
+        fig, ax = plt.subplots(figsize=(10, 5))
+    
     if n_features == 1:
         # Если только один признак, создаем обычную диаграмму рассеяния с горизонтальным соотношением сторон
-        fig, ax = plt.subplots(figsize=(10, 5))
         ax.scatter(X[feature_names[0]], y, color='blue', alpha=0.6, edgecolors='white')
         
         # Добавляем линию тренда
@@ -213,10 +218,6 @@ def create_multi_scatter_plot(X, y, feature_names, target_name="GDP"):
         ax.text(0.05, 0.95, equation, transform=ax.transAxes, fontsize=10, 
                verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
     else:
-        # Создаем единую модель множественной регрессии для всех выбранных признаков
-        # с горизонтальным соотношением сторон
-        fig, ax = plt.subplots(figsize=(10, 5))
-        
         # Обучаем модель множественной регрессии
         model = LinearRegression()
         model.fit(X, y)
@@ -277,7 +278,7 @@ def create_multi_scatter_plot(X, y, feature_names, target_name="GDP"):
     fig.tight_layout(pad=0.5)
     return fig
 
-def create_3d_plot(X, y, feature_names, target_name="GDP", years=None):
+def create_3d_plot(X, y, feature_names, target_name="GDP", years=None, fig=None, ax=None):
     """
     Создает трехмерный график зависимости целевой переменной от двух признаков.
     
@@ -287,13 +288,17 @@ def create_3d_plot(X, y, feature_names, target_name="GDP", years=None):
         feature_names (list): Названия признаков [x_name, z_name]
         target_name (str): Название целевой переменной
         years (list): Список годов для цветовой кодировки точек
+        fig (matplotlib.figure.Figure): Существующая фигура (опционально)
+        ax (matplotlib.axes.Axes): Существующая 3D ось (опционально)
     
     Returns:
         matplotlib.figure.Figure: Объект фигуры с 3D графиком
     """
-    # Создаем горизонтальную фигуру
-    fig = plt.figure(figsize=(10, 5))
-    ax = fig.add_subplot(111, projection='3d')
+    # Создаем фигуру, если она не была передана
+    if fig is None:
+        fig = plt.figure(figsize=(10, 5))
+    if ax is None:
+        ax = fig.add_subplot(111, projection='3d')
     
     # Извлекаем названия признаков
     x_feature = feature_names[0]
@@ -351,13 +356,15 @@ def create_3d_plot(X, y, feature_names, target_name="GDP", years=None):
     
     return fig
 
-def create_heatmap_plot(data, title="Корреляционная матрица"):
+def create_heatmap_plot(data, title="Корреляционная матрица", fig=None, ax=None):
     """
     Создает тепловую карту корреляций между переменными.
     
     Args:
         data (pd.DataFrame): DataFrame с данными для анализа корреляций
         title (str): Заголовок графика
+        fig (matplotlib.figure.Figure): Существующая фигура (опционально)
+        ax (matplotlib.axes.Axes): Существующая ось (опционально)
     
     Returns:
         matplotlib.figure.Figure: Объект фигуры с тепловой картой
@@ -370,9 +377,14 @@ def create_heatmap_plot(data, title="Корреляционная матрица
     # Рассчитываем корреляции
     corr_matrix = data.corr()
     
-    # Создаем горизонтальную фигуру с увеличенным размером для лучшего размещения текста
-    plt.figure(figsize=(12, 8))
-    fig = plt.gcf()
+    # Создаем горизонтальную фигуру, если она не передана
+    if fig is None:
+        plt.figure(figsize=(12, 8))
+        fig = plt.gcf()
+    
+    # Используем существующую ось или текущую ось фигуры
+    if ax is None:
+        ax = fig.add_subplot(111)
     
     # Создаем маску для верхнего треугольника
     mask = np.triu(np.ones_like(corr_matrix, dtype=bool))  # Маска для верхнего треугольника
@@ -402,7 +414,7 @@ def create_heatmap_plot(data, title="Корреляционная матрица
     custom_cmap = LinearSegmentedColormap.from_list("custom_coolwarm", colors, N=100)
     
     # Создаем тепловую карту с адаптивными цветами для текста
-    ax = sns.heatmap(
+    sns.heatmap(
         corr_matrix,
         annot=True,              # Добавляем числовые значения
         fmt=".2f",               # Формат числовых значений (2 знака после запятой)
@@ -414,7 +426,8 @@ def create_heatmap_plot(data, title="Корреляционная матрица
         annot_kws={
             "size": 12,          # Увеличиваем размер текста для лучшей читаемости
             "weight": "bold"     # Делаем текст жирным для лучшей видимости
-        }
+        },
+        ax=ax                    # Используем переданную ось
     )
     
     # Изменяем цвета текста для каждой аннотации
@@ -428,7 +441,7 @@ def create_heatmap_plot(data, title="Корреляционная матрица
             text.set_color(text_colors[i][j])
     
     # Настраиваем внешний вид
-    plt.title(title, fontsize=16, pad=15, color=DARK_THEME['text_light'])
+    ax.set_title(title, fontsize=16, pad=15, color=DARK_THEME['text_light'])
     
     # Увеличиваем отступы и улучшаем метки осей
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Оставляем место внизу для меток
@@ -449,7 +462,7 @@ def create_heatmap_plot(data, title="Корреляционная матрица
     
     return fig
 
-def create_partial_dependence_plot(model, X, feature_idx, feature_name, target_name="GDP"):
+def create_partial_dependence_plot(model, X, feature_idx, feature_name, target_name="GDP", fig=None, ax=None):
     """
     Создает график частичной зависимости целевой переменной от конкретного признака.
     
@@ -459,12 +472,15 @@ def create_partial_dependence_plot(model, X, feature_idx, feature_name, target_n
         feature_idx: Индекс признака, для которого строится график частичной зависимости
         feature_name: Название признака
         target_name: Название целевой переменной
+        fig (matplotlib.figure.Figure): Существующая фигура (опционально)
+        ax (matplotlib.axes.Axes): Существующая ось (опционально)
     
     Returns:
         matplotlib.figure.Figure: Объект фигуры с графиком частичной зависимости
     """
-    # Создаем горизонтальную фигуру
-    fig, ax = plt.subplots(figsize=(10, 5))
+    # Создаем горизонтальную фигуру, если она не передана
+    if fig is None or ax is None:
+        fig, ax = plt.subplots(figsize=(10, 5))
     
     # Рассчитываем частичную зависимость
     feature_values = X.iloc[:, feature_idx].unique() if hasattr(X, 'iloc') else np.unique(X[:, feature_idx])
@@ -548,6 +564,7 @@ def create_partial_dependence_plot(model, X, feature_idx, feature_name, target_n
     ax.grid(True, linestyle='--', alpha=0.7)
     ax.legend(loc='best', fontsize=9)
     
-    # Устанавливаем плотный макет
+    # Улучшаем макет
     fig.tight_layout(pad=0.5)
+    
     return fig 

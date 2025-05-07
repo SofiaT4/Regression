@@ -14,7 +14,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.figure import Figure
 from typing import Dict, List, Union, Optional, Any
 
-from ui.components.ui_helpers import center_window
+from ui.components.ui_helpers import center_window, RussianNavigationToolbar
 from utils.visualization.dependency_plots import (
     create_scatter_plot,
     create_multi_scatter_plot,
@@ -172,28 +172,28 @@ class DependencyViewer(ttk.Frame):
             command=self.create_plot
         ).pack(fill=tk.X, padx=5, pady=10)
         
-        # Фрейм для графика справа
-        self.graph_frame = ttk.Frame(main_frame)
+        # Создаем фрейм для графика справа
+        self.graph_frame = tk.Frame(main_frame, bg=DARK_THEME['primary'])
         self.graph_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Инициализируем пустой график с горизонтальным соотношением сторон и темной темой
         self.figure = Figure(figsize=(10, 5.5), dpi=100, facecolor=DARK_THEME['primary'])
         
-        # Создаем холст для отображения графика
-        self.canvas = FigureCanvasTkAgg(self.figure, self.graph_frame)
-        canvas_widget = self.canvas.get_tk_widget()
-        canvas_widget.pack(fill=tk.BOTH, expand=True)
+        # Создаем контейнер для графика
+        self.canvas_container = tk.Frame(self.graph_frame, bg=DARK_THEME['primary'])
+        self.canvas_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         
-        # Добавляем тулбар для графика
-        self.toolbar = NavigationToolbar2Tk(self.canvas, self.graph_frame)
-        self.toolbar.config(background=DARK_THEME['primary'])
-        for button in self.toolbar.winfo_children():
-            if isinstance(button, tk.Button):
-                button.config(background=DARK_THEME['bg_light'], foreground=DARK_THEME['neutral'],
-                             activebackground=DARK_THEME['accent'], activeforeground=DARK_THEME['text_light'])
-            elif isinstance(button, tk.Label):
-                button.config(background=DARK_THEME['primary'], foreground=DARK_THEME['neutral'])
-        self.toolbar.update()
+        # Создаем холст для отображения графика
+        self.canvas = FigureCanvasTkAgg(self.figure, self.canvas_container)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        
+        # Создаем фрейм для тулбара и размещаем его внизу
+        self.toolbar_frame = tk.Frame(self.graph_frame, bg=DARK_THEME['primary'])
+        self.toolbar_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        # Создаем экземпляр тулбара с правильной привязкой к canvas
+        self.toolbar = RussianNavigationToolbar(self.canvas, self.toolbar_frame, theme=DARK_THEME)
         
         # Инициализируем виджеты для выбора переменных
         self.setup_variable_controls()
@@ -316,16 +316,45 @@ class DependencyViewer(ttk.Frame):
             # Если не удалось найти или настроить entry, игнорируем
             pass
     
+    def _reinitialize_canvas_and_toolbar(self):
+        """
+        Полностью пересоздает канвас и тулбар, сохраняя текущую фигуру.
+        Используется, когда нужно восстановить связь между фигурой и элементами управления.
+        """
+        # Сохраняем текущую фигуру
+        current_figure = self.figure
+        
+        # Удаляем существующий канвас и тулбар
+        if hasattr(self, 'canvas') and self.canvas:
+            for item in self.canvas_container.winfo_children():
+                item.destroy()
+        
+        if hasattr(self, 'toolbar') and self.toolbar:
+            for item in self.toolbar_frame.winfo_children():
+                item.destroy()
+        
+        # Пересоздаем канвас с текущей фигурой
+        self.canvas = FigureCanvasTkAgg(current_figure, self.canvas_container)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        
+        # Пересоздаем тулбар с новым канвасом
+        self.toolbar = RussianNavigationToolbar(self.canvas, self.toolbar_frame, theme=DARK_THEME)
+        self.toolbar.update()
+    
     def on_plot_type_change(self):
         """Обработчик изменения типа графика."""
-        # Очищаем текущий график при смене типа
-        plt.close(self.figure)
-        self.figure = Figure(figsize=(10, 5.5), dpi=100, facecolor=DARK_THEME['primary'])
-        self.canvas.figure = self.figure
-        self.canvas.draw()
+        # Очищаем текущий график при смене типа, но не создаем новую фигуру
+        self.figure.clear()
         
         # Обновляем элементы управления
         self.setup_variable_controls()
+        
+        # Полностью пересоздаем канвас и тулбар
+        self._reinitialize_canvas_and_toolbar()
+        
+        # Перерисовываем канвас
+        self.canvas.draw()
     
     def get_selected_features(self):
         """
@@ -347,10 +376,8 @@ class DependencyViewer(ttk.Frame):
         """
         plot_type = self.plot_type.get()
         
-        # Полностью удаляем предыдущий график и все его содержимое
-        plt.close(self.figure)
-        self.figure = Figure(figsize=(10, 5.5), dpi=100, facecolor=DARK_THEME['primary'])
-        self.canvas.figure = self.figure
+        # Очищаем текущую фигуру, но НЕ создаем новую
+        self.figure.clear()
         
         # Общие данные
         # ВВП всегда на оси Y для обычных графиков
@@ -364,7 +391,7 @@ class DependencyViewer(ttk.Frame):
                 
                 x_data = self.df[x_feature]
                 
-                # Создаем график и передаем нашу существующую фигуру
+                # Создаем график, используя существующую фигуру
                 create_scatter_plot(
                     x_data=x_data,
                     y_data=y_data,
@@ -378,7 +405,7 @@ class DependencyViewer(ttk.Frame):
                 self.apply_dark_theme_to_figure(self.figure)
                 
                 # Увеличиваем отступы для диаграммы рассеяния, чтобы были видны метки на нижней оси
-                self.figure.subplots_adjust(bottom=0.18, left=0.12, right=0.92, top=0.85)
+                self.figure.subplots_adjust(bottom=0.23, left=0.12, right=0.92, top=0.85)
                 
             elif plot_type == "multi_scatter":
                 # Множественная диаграмма рассеяния
@@ -390,24 +417,24 @@ class DependencyViewer(ttk.Frame):
                 
                 X_selected = self.df[selected_features]
                 
-                # Создаем график множественной диаграммы
-                new_fig = create_multi_scatter_plot(
+                # Создаем базовую ось для графика
+                ax = self.figure.add_subplot(111)
+                
+                # Вместо создания новой фигуры, используем существующую
+                create_multi_scatter_plot(
                     X=X_selected,
                     y=y_data,
                     feature_names=selected_features,
-                    target_name="ВВП"
+                    target_name="ВВП",
+                    fig=self.figure,
+                    ax=ax
                 )
-                
-                # Целиком заменяем нашу фигуру на новую
-                plt.close(self.figure)  # Закрываем старую фигуру
-                self.figure = new_fig
-                self.canvas.figure = new_fig
                 
                 # Применяем темную тему к созданному графику
                 self.apply_dark_theme_to_figure(self.figure)
                 
                 # Увеличиваем отступы для множественной диаграммы
-                self.figure.subplots_adjust(bottom=0.18, left=0.12, right=0.92, top=0.85)
+                self.figure.subplots_adjust(bottom=0.23, left=0.12, right=0.92, top=0.85)
                 
             elif plot_type == "3d":
                 # 3D график
@@ -420,25 +447,25 @@ class DependencyViewer(ttk.Frame):
                 
                 X_selected = self.df[[x_feature, z_feature]]
                 
-                # Создаем 3D график
-                new_fig = create_3d_plot(
+                # Создаем 3D ось
+                ax = self.figure.add_subplot(111, projection='3d')
+                
+                # Используем существующую фигуру для 3D графика
+                create_3d_plot(
                     X=X_selected,
                     y=y_data,
                     feature_names=[x_feature, z_feature],
                     target_name="ВВП",
-                    years=self.years
+                    years=self.years,
+                    fig=self.figure,
+                    ax=ax
                 )
-                
-                # Целиком заменяем фигуру на новую
-                plt.close(self.figure)  # Закрываем старую фигуру
-                self.figure = new_fig
-                self.canvas.figure = new_fig
                 
                 # Применяем темную тему к созданному графику
                 self.apply_dark_theme_to_figure(self.figure)
                 
                 # Корректируем положение 3D графика
-                self.figure.subplots_adjust(bottom=0.18, left=0.12, right=0.92, top=0.85)
+                self.figure.subplots_adjust(bottom=0.23, left=0.12, right=0.92, top=0.85)
                 
             elif plot_type == "heatmap":
                 # Тепловая карта корреляций
@@ -446,22 +473,22 @@ class DependencyViewer(ttk.Frame):
                 data_for_corr = self.df[self.feature_names].copy()
                 data_for_corr["ВВП"] = y_data
                 
-                # Создаем тепловую карту
-                new_fig = create_heatmap_plot(
-                    data=data_for_corr,
-                    title="Корреляции между экономическими показателями"
-                )
+                # Создаем базовую ось
+                ax = self.figure.add_subplot(111)
                 
-                # Целиком заменяем фигуру на новую
-                plt.close(self.figure)  # Закрываем старую фигуру
-                self.figure = new_fig
-                self.canvas.figure = new_fig
+                # Создаем тепловую карту на существующей фигуре
+                create_heatmap_plot(
+                    data=data_for_corr,
+                    title="Корреляции между экономическими показателями",
+                    fig=self.figure,
+                    ax=ax
+                )
                 
                 # Применяем темную тему к созданному графику
                 self.apply_dark_theme_to_figure(self.figure)
                 
                 # Корректируем положение тепловой карты
-                self.figure.subplots_adjust(bottom=0.18, left=0.15, right=0.92, top=0.85)
+                self.figure.subplots_adjust(bottom=0.23, left=0.15, right=0.92, top=0.85)
                 
             elif plot_type == "partial_dependence":
                 # График частичной зависимости
@@ -513,25 +540,25 @@ class DependencyViewer(ttk.Frame):
                                          f"Признак {x_feature} не используется в модели {model_name}")
                     return
                 
-                # Создаем график частичной зависимости
-                new_fig = create_partial_dependence_plot(
+                # Создаем базовую ось
+                ax = self.figure.add_subplot(111)
+                
+                # Создаем график частичной зависимости на существующей фигуре
+                create_partial_dependence_plot(
                     model=sklearn_model,
                     X=X_model,
                     feature_idx=feature_idx,
                     feature_name=x_feature,
-                    target_name="ВВП"
+                    target_name="ВВП",
+                    fig=self.figure,
+                    ax=ax
                 )
-                
-                # Целиком заменяем фигуру на новую
-                plt.close(self.figure)  # Закрываем старую фигуру
-                self.figure = new_fig
-                self.canvas.figure = new_fig
                 
                 # Применяем темную тему к созданному графику
                 self.apply_dark_theme_to_figure(self.figure)
                 
                 # Корректируем положение графика частичной зависимости
-                self.figure.subplots_adjust(bottom=0.18, left=0.12, right=0.92, top=0.85)
+                self.figure.subplots_adjust(bottom=0.23, left=0.12, right=0.92, top=0.85)
             
             # Обновляем холст с корректным размером
             # Убедимся, что текущий размер фигуры соответствует размеру виджета
@@ -543,13 +570,19 @@ class DependencyViewer(ttk.Frame):
                 self.figure.set_size_inches(desired_width, desired_height)
                 
                 # Добавляем дополнительный отступ снизу для всех типов графиков
-                self.figure.subplots_adjust(bottom=0.18, right=0.92)
-                
+                self.figure.subplots_adjust(bottom=0.23, right=0.92)
+            
             # Перерисовываем холст
             self.canvas.draw()
             
+            # Пересоздаем все элементы для гарантии правильной работы
+            self._reinitialize_canvas_and_toolbar()
+            
         except Exception as e:
             messagebox.showerror("Ошибка", f"Произошла ошибка при создании графика: {str(e)}")
+            # Логируем исключение для отладки
+            import logging
+            logging.exception("Ошибка при создании графика:")
     
     def apply_dark_theme_to_figure(self, fig):
         """Применяет темную тему к уже созданной фигуре matplotlib"""
