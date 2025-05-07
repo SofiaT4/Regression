@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Any, Optional, Union, Tuple
 
-from ui.components.ui_helpers import center_window
+from ui.components.ui_helpers import center_window, RussianNavigationToolbar
 
 class CoefficientViewer:
     """
@@ -352,7 +352,7 @@ class CoefficientViewer:
         try:
             # Импортируем необходимые модули
             from matplotlib.figure import Figure
-            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
             
             # Создаем новое окно
             viz_window = tk.Toplevel(self.window)
@@ -434,19 +434,9 @@ class CoefficientViewer:
             # Добавляем панель инструментов matplotlib (также с темным стилем)
             toolbar_frame = tk.Frame(frame, bg=DARK_THEME['primary'])
             toolbar_frame.pack(fill=tk.X)
-            toolbar = NavigationToolbar2Tk(canvas, toolbar_frame)
+            toolbar = RussianNavigationToolbar(canvas, toolbar_frame, theme=DARK_THEME)
             toolbar.update()
-            toolbar.config(background=DARK_THEME['primary'])
-            
-            # Изменяем цвет всех кнопок на панели инструментов
-            for button in toolbar.winfo_children():
-                if isinstance(button, tk.Button):
-                    button.config(
-                        bg=DARK_THEME['bg_light'],
-                        fg=DARK_THEME['neutral'],
-                        activebackground=DARK_THEME['accent'],
-                        activeforeground=DARK_THEME['text_light']
-                    )
+            toolbar.pack(side=tk.BOTTOM, fill=tk.X)
             
             # Добавляем кнопку закрытия
             button_frame = tk.Frame(viz_window, pady=10, bg=DARK_THEME['primary'])

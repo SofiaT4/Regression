@@ -7,9 +7,332 @@ import tkinter as tk
 from tkinter import ttk
 import re
 from typing import Any, Optional, Tuple, Dict, List, Callable, Union
+from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
+import os
+import matplotlib
 
 # Импортируем функции стилизации из модуля theme_manager
 from ui.components.theme_manager import apply_theme, DARK_THEME, style_treeview_tags
+
+# Словарь с русскими переводами для всплывающих подсказок NavigationToolbar2Tk
+TOOLBAR_TOOLTIPS = {
+    'Home': 'Домой',
+    'Back': 'Назад',
+    'Forward': 'Вперед',
+    'Pan': 'Панорамирование',
+    'Zoom': 'Масштабирование',
+    'Zoom to rectangle': 'Масштабирование области',
+    'Subplots': 'Настройка графика',
+    'Save': 'Сохранить фигуру',
+    'help': 'Помощь',
+    'quit': 'Выход'
+}
+
+# Словарь для прямого перевода текстов кнопок
+BUTTON_TEXTS = {
+    'Zoom to rectangle': 'Масштабирование области',
+    'Pan Axes': 'Панорамирование',
+    'x/y fixes axis': 'Фиксация осей x/y',
+    'zoom rect': 'Масштабирование',
+    'pan/zoom': 'Панорамирование',
+    'Zoom': 'Масштабирование',
+    'Pan': 'Панорамирование',
+    'Home': 'Домой',
+    'Back': 'Назад',
+    'Forward': 'Вперед',
+    'Subplots': 'Настройка графика',
+    'Save': 'Сохранить'
+}
+
+class RussianNavigationToolbar(NavigationToolbar2Tk):
+    """
+    Панель навигации для графиков matplotlib с русскими подсказками.
+    Расширяет стандартный NavigationToolbar2Tk для обеспечения полной 
+    функциональности всех элементов управления и русификации подсказок.
+    """
+    # Переопределяем элементы тулбара с русскими названиями
+    toolitems = (
+        ('Домой', 'Восстановить исходный вид', 'home', 'home'),
+        ('Назад', 'Вернуться к предыдущему виду', 'back', 'back'),
+        ('Вперед', 'Перейти к следующему виду', 'forward', 'forward'),
+        ('Панорамирование', 'Панорамирование осей', 'move', 'pan'),
+        ('Масштабирование', 'Масштабирование области', 'zoom_to_rect', 'zoom'),
+        ('Настройка графика', 'Настроить график', 'subplots', 'configure_subplots'),
+        ('Сохранить', 'Сохранить фигуру', 'filesave', 'save_figure'),
+    )
+    
+    # Переводы для сообщений в панели инструментов
+    message_translations = {
+        'Zoom to rectangle': 'Масштабирование области',
+        'Zoom rectangle': 'Область масштабирования',
+        'Pan': 'Панорамирование',
+        'Pan axes': 'Панорамирование осей',
+        'Navigate mode': 'Режим навигации',
+        'Press left button to pan, right button to zoom': 'Нажмите левую кнопку для панорамирования, правую для масштабирования',
+        'Press CTRL and move the mouse to zoom': 'Нажмите CTRL и двигайте мышь для масштабирования',
+        'Use wheel to zoom': 'Используйте колесо для масштабирования',
+        'Home/Reset': 'Домой/Сброс',
+        'Reset original view': 'Восстановить исходный вид',
+        'Back': 'Назад',
+        'Previous view': 'Предыдущий вид',
+        'Forward': 'Вперед',
+        'Next view': 'Следующий вид',
+        'Save': 'Сохранить',
+        'Save the figure': 'Сохранить фигуру',
+        'Subplots': 'Настройка графика',
+        'Configure subplots': 'Настроить график',
+        'x/y fixes axis': 'Фиксация осей x/y'
+    }
+    
+    def __init__(self, canvas, parent, theme=None):
+        # Инициализируем родительский класс с нашими русскими элементами (toolitems)
+        NavigationToolbar2Tk.__init__(self, canvas, parent)
+        self.theme = theme
+        
+        # Словарь для доступа к кнопкам
+        self._buttons = {}
+        
+        # Находим кнопки и сохраняем их для быстрого доступа
+        for i, child in enumerate(self.winfo_children()):
+            if isinstance(child, tk.Button):
+                # Определяем тип кнопки по индексу в наборе
+                if i < len(self.toolitems):
+                    name, tooltip, _, callback = self.toolitems[i]
+                    self._buttons[name] = child
+                    # Создаем подсказку на русском
+                    create_tooltip(child, tooltip)
+        
+        # Принудительно обновляем состояние кнопок
+        self._update_buttons_checked()
+        
+        # Применяем темную тему, если она предоставлена
+        if theme:
+            self.config(background=theme['primary'])
+            for button in self.winfo_children():
+                if isinstance(button, tk.Button):
+                    button.config(
+                        bg=theme['bg_light'],
+                        fg=theme['neutral'],
+                        activebackground=theme['accent'],
+                        activeforeground=theme['text_light']
+                    )
+                elif isinstance(button, tk.Label):
+                    button.config(
+                        background=theme['primary'],
+                        foreground=theme['neutral']
+                    )
+                    
+    def _make_classic_style_pseudo_toolbar(self):
+        """
+        Создаем тулбар в классическом стиле с русскими названиями.
+        Это переопределенный метод из NavigationToolbar2Tk.
+        """
+        self.basedir = os.path.join(matplotlib.rcParams['datapath'], 'images')
+        
+        for text, tooltip_text, image_file, callback in self.toolitems:
+            if text is None:
+                self.pack(tk.Label(self, text=' '), side=tk.LEFT)
+                continue
+            
+            image = os.path.join(self.basedir, image_file + '.png')
+            im = tk.PhotoImage(master=self, file=image)
+            button = tk.Button(
+                self, text=text, padx=2, pady=2, image=im, command=getattr(self, callback))
+            button._ntimage = im
+            button.pack(side=tk.LEFT)
+            if callback in ['zoom', 'pan']:
+                self._active_button = button
+            self._buttons[text] = button
+    
+    def set_message(self, s):
+        """
+        Переопределяем метод для перевода сообщений на русский.
+        """
+        if s in self.message_translations:
+            s = self.message_translations[s]
+        else:
+            # Пытаемся искать частичные совпадения для неточных сообщений
+            for eng, rus in self.message_translations.items():
+                if eng in s:
+                    s = s.replace(eng, rus)
+                    break
+        
+        # Вызываем родительский метод с переведенным сообщением
+        NavigationToolbar2Tk.set_message(self, s)
+
+    def zoom(self, *args):
+        """
+        Переопределяем метод зума для обеспечения стабильности работы кнопки.
+        """
+        NavigationToolbar2Tk.zoom(self, *args)
+        # Принудительно устанавливаем режим и обновляем внешний вид
+        self.mode = 'zoom rect'
+        self.set_message('Масштабирование области')
+        # Обновляем состояние кнопок
+        self._update_buttons_checked()
+
+    def pan(self, *args):
+        """
+        Переопределяем метод панорамирования для обеспечения стабильности работы кнопки.
+        """
+        NavigationToolbar2Tk.pan(self, *args)
+        # Принудительно устанавливаем режим и обновляем внешний вид
+        self.mode = 'pan/zoom'
+        self.set_message('Панорамирование осей')
+        # Обновляем состояние кнопок
+        self._update_buttons_checked()
+        
+    # Переопределяем другие методы, чтобы гарантировать их корректную работу с русскими надписями
+    def home(self, *args):
+        """Сброс к начальному виду."""
+        NavigationToolbar2Tk.home(self, *args)
+        self.set_message('Восстановить исходный вид')
+    
+    def back(self, *args):
+        """Возврат к предыдущему виду."""
+        NavigationToolbar2Tk.back(self, *args)
+        self.set_message('Возврат к предыдущему виду')
+    
+    def forward(self, *args):
+        """Переход к следующему виду."""
+        NavigationToolbar2Tk.forward(self, *args)
+        self.set_message('Переход к следующему виду')
+    
+    def _update_buttons_checked(self):
+        """
+        Переопределяем метод обновления состояния кнопок.
+        """
+        # Вызываем родительский метод для обновления внутреннего состояния
+        NavigationToolbar2Tk._update_buttons_checked(self)
+        
+        # После обновления состояния в родительском классе, принудительно обновляем внешний вид кнопок
+        if hasattr(self, '_buttons'):
+            # Явно устанавливаем состояние кнопок на основе текущего режима
+            if 'Панорамирование' in self._buttons:
+                if self.mode == 'pan/zoom':
+                    self._buttons['Панорамирование'].config(relief='sunken')
+                else:
+                    self._buttons['Панорамирование'].config(relief='raised')
+                    
+            if 'Масштабирование' in self._buttons:
+                if self.mode == 'zoom rect':
+                    self._buttons['Масштабирование'].config(relief='sunken')
+                else:
+                    self._buttons['Масштабирование'].config(relief='raised')
+    
+    def configure_subplots(self, *args):
+        """Настройка графика с русификацией окна настройки."""
+        # Вызываем метод напрямую из класса, а не через экземпляр
+        # Это решит проблему с открытием окна
+        result = NavigationToolbar2Tk.configure_subplots(self, *args)
+        
+        # Если конфигурационное окно было создано
+        if hasattr(self, "subplot_tool") and self.subplot_tool:
+            # Русифицируем надписи и подсказки в окне настройки
+            # Используем title() для Tkinter окна вместо set_title
+            self.subplot_tool.title("Настройка подграфиков")
+
+            # Переводим текст инструкции
+            for widget in self.subplot_tool.winfo_children():
+                if isinstance(widget, tk.Label):
+                    if "Click on slider" in widget.cget("text"):
+                        widget.config(text="Щелкните на ползунке для настройки параметров графика")
+
+            # Переводим подписи ползунков
+            for slider_label in self.subplot_tool.winfo_children():
+                if isinstance(slider_label, tk.Label):
+                    label_text = slider_label.cget("text")
+                    if label_text == "left":
+                        slider_label.config(text="левый")
+                    elif label_text == "bottom":
+                        slider_label.config(text="нижний")
+                    elif label_text == "right":
+                        slider_label.config(text="правый")
+                    elif label_text == "top":
+                        slider_label.config(text="верхний")
+                    elif label_text == "wspace":
+                        slider_label.config(text="гор. отступ")
+                    elif label_text == "hspace":
+                        slider_label.config(text="верт. отступ")
+
+            # Переводим кнопку "Close"
+            for button in self.subplot_tool.winfo_children():
+                if isinstance(button, tk.Button) and button.cget("text") == "Close":
+                    button.config(text="Закрыть")
+                    
+            # Принудительное обновление окна
+            self.subplot_tool.update()
+
+        self.set_message('Настройка графика')
+        return result
+    
+    def save_figure(self, *args):
+        """Сохранение фигуры."""
+        NavigationToolbar2Tk.save_figure(self, *args)
+        self.set_message('Сохранить фигуру')
+    
+    def update(self):
+        """
+        Обновление всех элементов панели инструментов.
+        """
+        NavigationToolbar2Tk.update(self)
+        # Принудительно обновляем состояние кнопок после обновления тулбара
+        self._update_buttons_checked()
+    
+    def press(self, event):
+        """
+        Обработка нажатия кнопки мыши, обеспечивает корректную работу режимов
+        масштабирования и панорамирования.
+        """
+        # Вызываем родительский метод для обработки нажатия
+        NavigationToolbar2Tk.press(self, event)
+        
+        # Обновляем сообщение в соответствии с текущим режимом
+        if self.mode == 'zoom rect':
+            self.set_message('Масштабирование области')
+        elif self.mode == 'pan/zoom':
+            self.set_message('Панорамирование осей')
+            
+    def release(self, event):
+        """
+        Обработка отпускания кнопки мыши, обеспечивает корректную работу
+        завершения операций масштабирования и панорамирования.
+        """
+        # Вызываем родительский метод для обработки отпускания
+        NavigationToolbar2Tk.release(self, event)
+        
+        # Обновляем сообщение после завершения операции
+        if self.mode == 'zoom rect':
+            self.set_message('Масштабирование области завершено')
+        elif self.mode == 'pan/zoom':
+            self.set_message('Панорамирование завершено')
+        
+        # Обновляем состояние кнопок
+        self._update_buttons_checked()
+        
+    def mouse_move(self, event):
+        """
+        Обработка движения мыши, обеспечивает корректную работу
+        с русскими подсказками во время операций.
+        """
+        # Вызываем родительский метод
+        NavigationToolbar2Tk.mouse_move(self, event)
+        
+        # Переопределяем сообщения в зависимости от режима
+        if self.mode == 'zoom rect' and self._lastCursor == 2:  # ZOOM
+            self.set_message('Масштабирование области...')
+        elif self.mode == 'pan/zoom' and self._lastCursor == 1:  # PAN
+            self.set_message('Панорамирование...')
+    
+    def scroll_event(self, event):
+        """
+        Обработка прокрутки колёсика мыши для масштабирования.
+        """
+        # Вызываем родительский метод
+        NavigationToolbar2Tk.scroll_event(self, event)
+        
+        # Обновляем сообщение
+        self.set_message('Масштабирование колёсиком')
 
 def center_window(window: Union[tk.Tk, tk.Toplevel], width: int, height: int) -> None:
     """Центрирует окно на экране."""

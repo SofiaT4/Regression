@@ -9,7 +9,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog, messagebox
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import numpy as np
 import pandas as pd
@@ -17,7 +17,7 @@ import warnings
 from typing import Dict, List, Any, Optional, Union, Tuple, Callable
 
 from utils.visualization.graph_manager import create_graph
-from ui.components.ui_helpers import center_window
+from ui.components.ui_helpers import center_window, RussianNavigationToolbar
 
 class GraphViewer:
     """
@@ -115,19 +115,9 @@ class GraphViewer:
         toolbar_frame = tk.Frame(graph_frame, bg=DARK_THEME['primary'])
         toolbar_frame.pack(fill=tk.X)
         
-        toolbar = NavigationToolbar2Tk(canvas, toolbar_frame)
+        toolbar = RussianNavigationToolbar(canvas, toolbar_frame, theme=DARK_THEME)
         toolbar.update()
-        toolbar.config(background=DARK_THEME['primary'])
-        
-        # Изменяем цвет всех кнопок на панели инструментов
-        for button in toolbar.winfo_children():
-            if isinstance(button, tk.Button):
-                button.config(
-                    bg=DARK_THEME['bg_light'],
-                    fg=DARK_THEME['neutral'],
-                    activebackground=DARK_THEME['accent'],
-                    activeforeground=DARK_THEME['text_light']
-                )
+        toolbar.pack(side=tk.BOTTOM, fill=tk.X)
         
         # Кнопки управления
         button_frame = tk.Frame(self.window, bg=DARK_THEME['primary'])
@@ -608,7 +598,7 @@ class GraphViewer:
             for widget in self.window.winfo_children():
                 if isinstance(widget, tk.Frame) and len(widget.winfo_children()) > 0:
                     for child in widget.winfo_children():
-                        if isinstance(child, FigureCanvasTkAgg) or isinstance(child, NavigationToolbar2Tk):
+                        if isinstance(child, FigureCanvasTkAgg) or isinstance(child, RussianNavigationToolbar):
                             child.destroy()
             
             # Создаем фрейм для графика
@@ -624,19 +614,8 @@ class GraphViewer:
             toolbar_frame = tk.Frame(graph_frame, bg=DARK_THEME['primary'])
             toolbar_frame.pack(fill=tk.X)
             
-            toolbar = NavigationToolbar2Tk(canvas, toolbar_frame)
+            toolbar = RussianNavigationToolbar(canvas, toolbar_frame, theme=DARK_THEME)
             toolbar.update()
-            toolbar.config(background=DARK_THEME['primary'])
-            
-            # Изменяем цвет всех кнопок на панели инструментов
-            for button in toolbar.winfo_children():
-                if isinstance(button, tk.Button):
-                    button.config(
-                        bg=DARK_THEME['bg_light'],
-                        fg=DARK_THEME['neutral'],
-                        activebackground=DARK_THEME['accent'],
-                        activeforeground=DARK_THEME['text_light']
-                    )
             
         except Exception as e:
             messagebox.showerror("Ошибка", f"Не удалось обновить график:\n{str(e)}")
