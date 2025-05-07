@@ -48,22 +48,25 @@ class ModelDisplayFrame(tk.Frame):
         self.back_callback = back_callback
         
         # Создаем фрейм для прокручиваемого содержимого
-        self.outer_frame = tk.Frame(parent, bg=DARK_THEME['primary'])
+        self.outer_frame = tk.Frame(parent, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
         self.outer_frame.pack(fill=tk.BOTH, expand=True)
         
         # Создаем Canvas и Scrollbar
         self.canvas = tk.Canvas(
             self.outer_frame, 
             borderwidth=0, 
-            highlightthickness=0,
-            bg=DARK_THEME['primary']
+            bg=DARK_THEME['primary'],
+            highlightbackground=DARK_THEME['primary'],
+            highlightthickness=0
         )
         self.vsb = tk.Scrollbar(
             self.outer_frame, 
             orient=tk.VERTICAL, 
             command=self.canvas.yview,
             bg=DARK_THEME['bg_light'],
-            troughcolor=DARK_THEME['primary']
+            troughcolor=DARK_THEME['primary'],
+            highlightbackground=DARK_THEME['primary'],
+            highlightthickness=0
         )
         self.canvas.configure(yscrollcommand=self.vsb.set)
         
@@ -72,7 +75,7 @@ class ModelDisplayFrame(tk.Frame):
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Создаем фрейм внутри Canvas, который будет содержать все
-        super().__init__(self.canvas, bg=DARK_THEME['primary'])
+        super().__init__(self.canvas, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
         self.canvas_frame = self.canvas.create_window((0, 0), window=self, anchor="nw")
         
         # Настраиваем прокрутку мыши
@@ -156,23 +159,23 @@ class ModelDisplayFrame(tk.Frame):
         self.notebook.pack(fill=tk.BOTH, expand=True, pady=(10, 5))
         
         # Вкладка "Регрессионная статистика"
-        self.stats_frame = tk.Frame(self.notebook, padx=10, pady=10, bg=DARK_THEME['primary'])
+        self.stats_frame = tk.Frame(self.notebook, padx=10, pady=10, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
         self.notebook.add(self.stats_frame, text="Регрессионная статистика")
         
         # Вкладка "Графики"
-        self.graphs_frame = tk.Frame(self.notebook, padx=10, pady=10, bg=DARK_THEME['primary'])
+        self.graphs_frame = tk.Frame(self.notebook, padx=10, pady=10, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
         self.notebook.add(self.graphs_frame, text="Графики")
         
         # Новая вкладка "Зависимости"
-        self.dependencies_frame = tk.Frame(self.notebook, padx=10, pady=10, bg=DARK_THEME['primary'])
+        self.dependencies_frame = tk.Frame(self.notebook, padx=10, pady=10, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
         self.notebook.add(self.dependencies_frame, text="Зависимости")
         
         # Кнопки управления - уменьшаем отступ, чтобы они были ближе к вкладкам
-        button_frame = tk.Frame(self, bg=DARK_THEME['primary'])
+        button_frame = tk.Frame(self, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
         button_frame.pack(fill=tk.X, pady=2)  # Уменьшаем отступ с 5 до 2
         
         # Добавляем тонкую разделительную линию над кнопками
-        separator = tk.Frame(self, height=1, bg=DARK_THEME['neutral'])
+        separator = tk.Frame(self, height=1, bg=DARK_THEME['neutral'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
         separator.pack(fill=tk.X, padx=20, pady=1)  # Уменьшаем отступ с 2 до 1
         
         # Кнопка экспорта отчета в PDF
@@ -184,7 +187,9 @@ class ModelDisplayFrame(tk.Frame):
             fg=DARK_THEME['neutral'],
             activebackground=DARK_THEME['accent'],
             activeforeground=DARK_THEME['text_light'],
-            command=self.export_report
+            command=self.export_report,
+            highlightbackground=DARK_THEME['primary'],
+            highlightthickness=0
         )
         report_button.pack(side=tk.LEFT, padx=5, pady=2)
         
@@ -197,7 +202,9 @@ class ModelDisplayFrame(tk.Frame):
             fg=DARK_THEME['neutral'],
             activebackground=DARK_THEME['accent'],
             activeforeground=DARK_THEME['text_light'],
-            command=self.export_current_model_plots
+            command=self.export_current_model_plots,
+            highlightbackground=DARK_THEME['primary'],
+            highlightthickness=0
         )
         save_button.pack(side=tk.LEFT, padx=5, pady=2)
         
@@ -210,7 +217,9 @@ class ModelDisplayFrame(tk.Frame):
             fg=DARK_THEME['neutral'],
             activebackground=DARK_THEME['accent'],
             activeforeground=DARK_THEME['text_light'],
-            command=self.handle_back_button
+            command=self.handle_back_button,
+            highlightbackground=DARK_THEME['primary'],
+            highlightthickness=0
         )
         back_button.pack(side=tk.RIGHT, padx=5, pady=2)
         
@@ -322,16 +331,41 @@ class ModelDisplayFrame(tk.Frame):
         """Настройка вкладки со статистикой регрессии."""
         from ui.components.theme_manager import DARK_THEME
         
+        # Create a canvas with scrollbar
+        canvas = tk.Canvas(self.stats_frame, bg=DARK_THEME['primary'], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self.stats_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=1)
+
+        # Configure the canvas
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        self.scrollable_window_id = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        # Привязываем изменение ширины canvas к ширине scrollable_frame
+        canvas.bind(
+            "<Configure>",
+            lambda event: canvas.itemconfig(self.scrollable_window_id, width=event.width)
+        )
+
+        # Pack the canvas and scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
         # Выбор модели для отображения
         model_frame = tk.LabelFrame(
-            self.stats_frame, 
+            scrollable_frame, 
             text="Выбор модели", 
             padx=10, 
             pady=10,
             bg=DARK_THEME['primary'],
-            fg=DARK_THEME['neutral']
+            fg=DARK_THEME['neutral'],
+            highlightbackground=DARK_THEME['primary'],
+            highlightcolor=DARK_THEME['primary'],
+            highlightthickness=1
         )
-        model_frame.pack(fill=tk.X, pady=5)
+        model_frame.pack(fill=tk.X, expand=True, pady=5)
         
         # Радиокнопки для выбора модели
         self.model_var = tk.StringVar(value=self.current_model)
@@ -378,22 +412,28 @@ class ModelDisplayFrame(tk.Frame):
         rb_unemployed.pack(anchor=tk.W, padx=5, pady=2)
         
         # Создаем выпадающие разделы сразу под выбором модели
-        self.equation_frame = self.create_collapsible_section(self.stats_frame, "Уравнение регрессии")
-        self.reg_stats_frame = self.create_collapsible_section(self.stats_frame, "Регрессионная статистика")
-        self.anova_frame = self.create_collapsible_section(self.stats_frame, "Дисперсионный анализ")
-        self.coef_frame = self.create_collapsible_section(self.stats_frame, "Коэффициенты")
-        self.comparison_frame = self.create_collapsible_section(self.stats_frame, "Сравнение моделей регрессии")
+        self.equation_frame = self.create_collapsible_section(scrollable_frame, "Уравнение регрессии")
+        self.reg_stats_frame = self.create_collapsible_section(scrollable_frame, "Регрессионная статистика")
+        self.anova_frame = self.create_collapsible_section(scrollable_frame, "Дисперсионный анализ")
+        self.coef_frame = self.create_collapsible_section(scrollable_frame, "Коэффициенты")
+        self.comparison_frame = self.create_collapsible_section(scrollable_frame, "Сравнение моделей регрессии")
         
         # Настройка секции сравнения моделей
         self.setup_model_comparison_section(self.comparison_frame)
         
         # Создаем фрейм для содержимого, которое будет меняться при выборе модели
-        self.content_frame = tk.Frame(self.stats_frame, bg=DARK_THEME['primary'])
+        self.content_frame = tk.Frame(scrollable_frame, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=1)
         self.content_frame.pack(fill=tk.BOTH, expand=True, pady=5)
         
         # Заполняем контент для выбранной модели
         self.update_content()
+
+        # Bind mouse wheel to scroll
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
         
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+    
     def create_collapsible_section(self, parent, title):
         """
         Создает сворачиваемую секцию с заголовком.
@@ -407,11 +447,11 @@ class ModelDisplayFrame(tk.Frame):
         """
         from ui.components.theme_manager import DARK_THEME
         
-        frame = tk.Frame(parent, bg=DARK_THEME['primary'])
-        frame.pack(fill=tk.X, pady=5)
+        frame = tk.Frame(parent, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
+        frame.pack(fill=tk.BOTH, expand=True, pady=5)
         
-        title_button_frame = tk.Frame(frame, bg=DARK_THEME['primary'])
-        title_button_frame.pack(fill=tk.X)
+        title_button_frame = tk.Frame(frame, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
+        title_button_frame.pack(fill=tk.X, expand=True)
         
         # Создаем переменную для отслеживания состояния раскрытия
         frame.is_expanded = tk.BooleanVar(value=True)
@@ -429,7 +469,9 @@ class ModelDisplayFrame(tk.Frame):
             fg=DARK_THEME['neutral'],
             activebackground=DARK_THEME['accent'],
             activeforeground=DARK_THEME['text_light'], 
-            command=lambda: self.toggle_section(frame)
+            command=lambda: self.toggle_section(frame),
+            highlightbackground=DARK_THEME['primary'],
+            highlightthickness=0
         )
         frame.toggle_button.pack(side=tk.LEFT)
         
@@ -443,8 +485,8 @@ class ModelDisplayFrame(tk.Frame):
         ).pack(side=tk.LEFT, padx=5)
         
         # Создаем содержимое секции, которое будет скрываться/показываться
-        frame.contentframe = tk.Frame(frame, bg=DARK_THEME['primary'])
-        frame.contentframe.pack(fill=tk.X, padx=20, pady=5)
+        frame.contentframe = tk.Frame(frame, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
+        frame.contentframe.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
         
         return frame
     
@@ -486,12 +528,14 @@ class ModelDisplayFrame(tk.Frame):
             font=("Arial", 10, "italic"), 
             wraplength=700,
             justify=tk.LEFT,
-            pady=5
+            pady=5,
+            bg=DARK_THEME['primary'],
+            fg=DARK_THEME['neutral']
         )
         info_label.pack(anchor=tk.W, fill=tk.X)
         
         # Создание фрейма для таблицы с явной высотой
-        table_container = tk.Frame(content_frame, height=400, width=750)
+        table_container = tk.Frame(content_frame, height=400, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
         table_container.pack(fill=tk.BOTH, expand=True, pady=10)
         table_container.pack_propagate(False)  # Предотвращаем изменение размера фрейма
         
@@ -510,10 +554,10 @@ class ModelDisplayFrame(tk.Frame):
         self.comparison_table.heading("3", text="Модель от безработицы")
         self.comparison_table.heading("4", text="Комбинированная модель")
         
-        self.comparison_table.column("1", width=250, anchor=tk.W)
-        self.comparison_table.column("2", width=150, anchor=tk.CENTER)
-        self.comparison_table.column("3", width=150, anchor=tk.CENTER)
-        self.comparison_table.column("4", width=150, anchor=tk.CENTER)
+        self.comparison_table.column("1", width=250, anchor=tk.W, stretch=True)
+        self.comparison_table.column("2", width=150, anchor=tk.CENTER, stretch=True)
+        self.comparison_table.column("3", width=150, anchor=tk.CENTER, stretch=True)
+        self.comparison_table.column("4", width=150, anchor=tk.CENTER, stretch=True)
         
         # Настраиваем теги для форматирования строк
         self.comparison_table.tag_configure("header", background="#f0f0f0", font=("Arial", 9, "bold"))
@@ -537,15 +581,21 @@ class ModelDisplayFrame(tk.Frame):
         self.comparison_table.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
         
         # Добавляем кнопки
-        buttons_frame = tk.Frame(content_frame, pady=10)
-        buttons_frame.pack(fill=tk.X)
+        buttons_frame = tk.Frame(content_frame, pady=10, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
+        buttons_frame.pack(fill=tk.X, expand=True)
         
         # Кнопка экспорта
         export_button = tk.Button(
             buttons_frame,
             text="Экспортировать сравнение в CSV",
             command=self.export_comparison_to_csv,
-            font=("Arial", 10)
+            font=("Arial", 10),
+            bg=DARK_THEME['bg_light'],
+            fg=DARK_THEME['neutral'],
+            activebackground=DARK_THEME['accent'],
+            activeforeground=DARK_THEME['text_light'],
+            highlightbackground=DARK_THEME['primary'],
+            highlightthickness=0
         )
         export_button.pack(side=tk.LEFT, padx=5)
           
@@ -607,7 +657,10 @@ class ModelDisplayFrame(tk.Frame):
             padx=10, 
             pady=5,
             bg=DARK_THEME['primary'],
-            fg=DARK_THEME['neutral']
+            fg=DARK_THEME['neutral'],
+            highlightbackground=DARK_THEME['primary'],
+            highlightcolor=DARK_THEME['primary'],
+            highlightthickness=1
         )
         model_frame.pack(fill=tk.X, pady=5)
         
@@ -662,7 +715,7 @@ class ModelDisplayFrame(tk.Frame):
         rb_unemployed.pack(side=tk.LEFT, padx=5)
         
         # Создаем фрейм для списка графиков
-        graphs_list_frame = tk.Frame(self.graphs_frame, pady=10, bg=DARK_THEME['primary'])
+        graphs_list_frame = tk.Frame(self.graphs_frame, pady=10, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
         graphs_list_frame.pack(fill=tk.BOTH, expand=True)
         
         # Заголовок для списка графиков
@@ -741,9 +794,11 @@ class ModelDisplayFrame(tk.Frame):
             font=("Courier", 10), 
             wraplength=600,
             bg=DARK_THEME['primary'],
-            fg=DARK_THEME['neutral']
+            fg=DARK_THEME['neutral'],
+            anchor="w",
+            justify="left"
         )
-        equation_label.pack(anchor=tk.W, padx=5, pady=5)
+        equation_label.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Добавляем уравнение для графиков
         chart_eq_text = format_equation_for_charts(model_stats, self.current_model)
@@ -753,9 +808,11 @@ class ModelDisplayFrame(tk.Frame):
             font=("Courier", 10), 
             wraplength=600,
             bg=DARK_THEME['primary'],
-            fg=DARK_THEME['neutral']
+            fg=DARK_THEME['neutral'],
+            anchor="w",
+            justify="left"
         )
-        chart_eq_label.pack(anchor=tk.W, padx=5, pady=5)
+        chart_eq_label.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # Настройка стиля для ttk виджетов
         style = ttk.Style()
@@ -778,20 +835,20 @@ class ModelDisplayFrame(tk.Frame):
         reg_stats_frame.columnconfigure(1, weight=1)
         
         # Статистические показатели из Excel с использованием стилей
-        ttk.Label(reg_stats_frame, text="Множественный R:", style="Bold.TLabel").grid(row=0, column=0, sticky="w", padx=5, pady=2)
-        ttk.Label(reg_stats_frame, text=f"{model_stats['multiple_r']:.8f}", style="TLabel").grid(row=0, column=1, sticky="w", padx=5, pady=2)
+        ttk.Label(reg_stats_frame, text="Множественный R:", style="Bold.TLabel").grid(row=0, column=0, sticky="ew", padx=5, pady=2)
+        ttk.Label(reg_stats_frame, text=f"{model_stats['multiple_r']:.8f}", style="TLabel").grid(row=0, column=1, sticky="ew", padx=5, pady=2)
         
-        ttk.Label(reg_stats_frame, text="R-квадрат:", style="Bold.TLabel").grid(row=1, column=0, sticky="w", padx=5, pady=2)
-        ttk.Label(reg_stats_frame, text=f"{model_stats['r2']:.8f}", style="TLabel").grid(row=1, column=1, sticky="w", padx=5, pady=2)
+        ttk.Label(reg_stats_frame, text="R-квадрат:", style="Bold.TLabel").grid(row=1, column=0, sticky="ew", padx=5, pady=2)
+        ttk.Label(reg_stats_frame, text=f"{model_stats['r2']:.8f}", style="TLabel").grid(row=1, column=1, sticky="ew", padx=5, pady=2)
         
-        ttk.Label(reg_stats_frame, text="Нормированный R-квадрат:", style="Bold.TLabel").grid(row=2, column=0, sticky="w", padx=5, pady=2)
-        ttk.Label(reg_stats_frame, text=f"{model_stats['adjusted_r2']:.8f}", style="TLabel").grid(row=2, column=1, sticky="w", padx=5, pady=2)
+        ttk.Label(reg_stats_frame, text="Нормированный R-квадрат:", style="Bold.TLabel").grid(row=2, column=0, sticky="ew", padx=5, pady=2)
+        ttk.Label(reg_stats_frame, text=f"{model_stats['adjusted_r2']:.8f}", style="TLabel").grid(row=2, column=1, sticky="ew", padx=5, pady=2)
         
-        ttk.Label(reg_stats_frame, text="Стандартная ошибка:", style="Bold.TLabel").grid(row=3, column=0, sticky="w", padx=5, pady=2)
-        ttk.Label(reg_stats_frame, text=f"{model_stats['se_regression']:.8f}", style="TLabel").grid(row=3, column=1, sticky="w", padx=5, pady=2)
+        ttk.Label(reg_stats_frame, text="Стандартная ошибка:", style="Bold.TLabel").grid(row=3, column=0, sticky="ew", padx=5, pady=2)
+        ttk.Label(reg_stats_frame, text=f"{model_stats['se_regression']:.8f}", style="TLabel").grid(row=3, column=1, sticky="ew", padx=5, pady=2)
         
-        ttk.Label(reg_stats_frame, text="Наблюдения:", style="Bold.TLabel").grid(row=4, column=0, sticky="w", padx=5, pady=2)
-        ttk.Label(reg_stats_frame, text=f"{model_stats['observations']}", style="TLabel").grid(row=4, column=1, sticky="w", padx=5, pady=2)
+        ttk.Label(reg_stats_frame, text="Наблюдения:", style="Bold.TLabel").grid(row=4, column=0, sticky="ew", padx=5, pady=2)
+        ttk.Label(reg_stats_frame, text=f"{model_stats['observations']}", style="TLabel").grid(row=4, column=1, sticky="ew", padx=5, pady=2)
         
         # 3. Заполняем дисперсионный анализ
         anova_frame = self.anova_frame.contentframe
@@ -799,6 +856,8 @@ class ModelDisplayFrame(tk.Frame):
         # Создаем Treeview для таблицы дисперсионного анализа
         columns = ("1", "2", "3", "4", "5")
         anova_table = ttk.Treeview(anova_frame, columns=columns, show="headings", height=3)
+        for col in columns:
+            anova_table.column(col, stretch=True)
         
         # Настраиваем заголовки и ширину столбцов
         anova_table.heading("1", text="")
@@ -807,11 +866,11 @@ class ModelDisplayFrame(tk.Frame):
         anova_table.heading("4", text="MS")
         anova_table.heading("5", text="F")
         
-        anova_table.column("1", width=100, anchor=tk.W)
-        anova_table.column("2", width=70, anchor=tk.CENTER)
-        anova_table.column("3", width=150, anchor=tk.CENTER)
-        anova_table.column("4", width=150, anchor=tk.CENTER)
-        anova_table.column("5", width=100, anchor=tk.CENTER)
+        anova_table.column("1", width=100, anchor=tk.W, stretch=True)
+        anova_table.column("2", width=70, anchor=tk.CENTER, stretch=True)
+        anova_table.column("3", width=150, anchor=tk.CENTER, stretch=True)
+        anova_table.column("4", width=150, anchor=tk.CENTER, stretch=True)
+        anova_table.column("5", width=100, anchor=tk.CENTER, stretch=True)
         
         # Заполняем таблицу ANOVA
         anova_table.insert("", "end", values=(
@@ -841,14 +900,14 @@ class ModelDisplayFrame(tk.Frame):
         # Применяем стили темной темы к таблице
         style_treeview_tags(anova_table)
 
-        anova_table.pack(fill=tk.X, padx=5, pady=5)
+        anova_table.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Добавляем информацию о значимости F под таблицей ANOVA
-        f_info_frame = tk.Frame(anova_frame, bg=DARK_THEME['primary'])
-        f_info_frame.pack(fill=tk.X, pady=5)
+        f_info_frame = tk.Frame(anova_frame, bg=DARK_THEME['primary'], highlightbackground=DARK_THEME['primary'], highlightthickness=0)
+        f_info_frame.pack(fill=tk.BOTH, expand=True, pady=5)
         
-        ttk.Label(f_info_frame, text="Значимость F:", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=5)
-        ttk.Label(f_info_frame, text=f"{model_stats['p_value_f']:.8f}").pack(side=tk.LEFT, padx=5)
+        ttk.Label(f_info_frame, text="Значимость F:", font=("Arial", 10, "bold"), style="Bold.TLabel").pack(side=tk.LEFT, padx=5)
+        ttk.Label(f_info_frame, text=f"{model_stats['p_value_f']:.8f}", style="TLabel").pack(side=tk.LEFT, padx=5)
         
         # 4. Заполняем коэффициенты
         coef_frame = self.coef_frame.contentframe
@@ -856,6 +915,8 @@ class ModelDisplayFrame(tk.Frame):
         # Создаем Treeview для таблицы коэффициентов
         columns = ("1", "2", "3", "4", "5", "6", "7")
         coef_table = ttk.Treeview(coef_frame, columns=columns, show="headings", height=min(len(model_stats['coefficients']), 6))
+        for col in columns:
+            coef_table.column(col, stretch=True)
         
         # Настраиваем заголовки и ширину столбцов
         coef_table.heading("1", text="")
@@ -866,13 +927,13 @@ class ModelDisplayFrame(tk.Frame):
         coef_table.heading("6", text="Нижние 95%")
         coef_table.heading("7", text="Верхние 95%")
         
-        coef_table.column("1", width=150)
-        coef_table.column("2", width=100)
-        coef_table.column("3", width=120)
-        coef_table.column("4", width=100)
-        coef_table.column("5", width=100)
-        coef_table.column("6", width=100)
-        coef_table.column("7", width=100)
+        coef_table.column("1", width=150, stretch=True)
+        coef_table.column("2", width=100, stretch=True)
+        coef_table.column("3", width=120, stretch=True)
+        coef_table.column("4", width=100, stretch=True)
+        coef_table.column("5", width=100, stretch=True)
+        coef_table.column("6", width=100, stretch=True)
+        coef_table.column("7", width=100, stretch=True)
         
         # Используем Excel-форматированные имена, если доступны
         if 'excel_feature_names' in model_stats:
@@ -922,7 +983,7 @@ class ModelDisplayFrame(tk.Frame):
         scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
         coef_table.configure(xscrollcommand=scrollbar.set)
         
-        coef_table.pack(fill=tk.X, padx=5, pady=5)
+        coef_table.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Если коэффициентов много, добавляем кнопку для просмотра всех в отдельном окне
         if len(model_stats['coefficients']) > 6:
@@ -934,9 +995,11 @@ class ModelDisplayFrame(tk.Frame):
                 bg=DARK_THEME['bg_light'],
                 fg=DARK_THEME['neutral'],
                 activebackground=DARK_THEME['accent'],
-                activeforeground=DARK_THEME['text_light']
+                activeforeground=DARK_THEME['text_light'],
+                highlightbackground=DARK_THEME['primary'],
+                highlightthickness=0
             )
-            view_all_button.pack(pady=5)
+            view_all_button.pack(fill=tk.BOTH, expand=True, pady=5)
     
     def show_all_coefficients(self, model_stats):
         """
@@ -1319,10 +1382,10 @@ class ModelDisplayFrame(tk.Frame):
             table.heading("3", text="Модель от безработицы")
             table.heading("4", text="Комбинированная модель")
             
-            table.column("1", width=150, anchor=tk.W)
-            table.column("2", width=200, anchor=tk.CENTER)
-            table.column("3", width=200, anchor=tk.CENTER)
-            table.column("4", width=200, anchor=tk.CENTER)
+            table.column("1", width=150, anchor=tk.W, stretch=True)
+            table.column("2", width=200, anchor=tk.CENTER, stretch=True)
+            table.column("3", width=200, anchor=tk.CENTER, stretch=True)
+            table.column("4", width=200, anchor=tk.CENTER, stretch=True)
             
             # Применяем стили темной темы к таблице
             style_treeview_tags(table)
