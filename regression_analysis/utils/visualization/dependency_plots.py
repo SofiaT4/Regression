@@ -15,9 +15,7 @@ import seaborn as sns
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 from typing import Union, List, Tuple, Dict, Optional, Any
-from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics import r2_score
-from sklearn.inspection import partial_dependence
 from matplotlib.gridspec import GridSpec
 from matplotlib.colors import LinearSegmentedColormap, to_rgb
 import matplotlib.colors as mcolors
@@ -278,84 +276,6 @@ def create_multi_scatter_plot(X, y, feature_names, target_name="GDP", fig=None, 
     fig.tight_layout(pad=0.5)
     return fig
 
-def create_3d_plot(X, y, feature_names, target_name="GDP", years=None, fig=None, ax=None):
-    """
-    Создает трехмерный график зависимости целевой переменной от двух признаков.
-    
-    Args:
-        X (pd.DataFrame): DataFrame с двумя колонками - признаками для осей X и Z
-        y (np.ndarray | pd.Series): Целевая переменная для оси Y
-        feature_names (list): Названия признаков [x_name, z_name]
-        target_name (str): Название целевой переменной
-        years (list): Список годов для цветовой кодировки точек
-        fig (matplotlib.figure.Figure): Существующая фигура (опционально)
-        ax (matplotlib.axes.Axes): Существующая 3D ось (опционально)
-    
-    Returns:
-        matplotlib.figure.Figure: Объект фигуры с 3D графиком
-    """
-    # Создаем фигуру, если она не была передана
-    if fig is None:
-        fig = plt.figure(figsize=(10, 5))
-    if ax is None:
-        ax = fig.add_subplot(111, projection='3d')
-    
-    # Извлекаем названия признаков
-    x_feature = feature_names[0]
-    z_feature = feature_names[1]
-    
-    # Извлекаем данные
-    x1 = X[x_feature].values
-    x2 = X[z_feature].values
-    
-    # Создаем сетку для поверхности
-    x1_grid = np.linspace(min(x1), max(x1), 20)
-    x2_grid = np.linspace(min(x2), max(x2), 20)
-    xx1, xx2 = np.meshgrid(x1_grid, x2_grid)
-    
-    # Обучаем регрессионную модель
-    model = LinearRegression()
-    model.fit(X, y)
-    
-    # Предсказываем значения для сетки
-    grid_points = np.column_stack([xx1.ravel(), xx2.ravel()])
-    grid_df = pd.DataFrame(grid_points, columns=[x_feature, z_feature])
-    y_pred_grid = model.predict(grid_df)
-    zz = y_pred_grid.reshape(xx1.shape)
-    
-    # Строим поверхность регрессии
-    surf = ax.plot_surface(xx1, xx2, zz, alpha=0.5, cmap='viridis', 
-                         rstride=1, cstride=1, linewidth=0, antialiased=True)
-    
-    # Добавляем точки данных
-    if years is not None and len(years) == len(y):
-        # Используем годы для цветовой кодировки
-        scatter = ax.scatter(x1, x2, y, c=years, cmap='cool', s=40, alpha=0.8, edgecolors='w')
-        fig.colorbar(scatter, ax=ax, pad=0.1, label='Год', shrink=0.7)
-    else:
-        ax.scatter(x1, x2, y, c='r', s=40, alpha=0.8, edgecolors='w')
-    
-    # Добавляем название осей с меньшим шрифтом
-    ax.set_xlabel(x_feature, fontsize=11)
-    ax.set_ylabel(z_feature, fontsize=11)
-    ax.set_zlabel(target_name, fontsize=11)
-    
-    # Добавляем заголовок и формулу регрессии
-    coefficients = model.coef_
-    intercept = model.intercept_
-    equation = f"{target_name} = {intercept:.2f} + {coefficients[0]:.2f}×{x_feature} + {coefficients[1]:.2f}×{z_feature}"
-    ax.set_title(f"Зависимость {target_name} от {x_feature} и {z_feature}\n{equation}", fontsize=12)
-    
-    # Добавляем информацию о R²
-    y_pred = model.predict(X)
-    r2 = r2_score(y, y_pred)
-    fig.text(0.02, 0.02, f"R² = {r2:.3f}", fontsize=10)
-    
-    # Улучшаем внешний вид и уменьшаем отступы
-    fig.tight_layout(pad=0.5)
-    
-    return fig
-
 def create_heatmap_plot(data, title="Корреляционная матрица", fig=None, ax=None):
     """
     Создает тепловую карту корреляций между переменными.
@@ -459,112 +379,5 @@ def create_heatmap_plot(data, title="Корреляционная матрица
         label.set_color(DARK_THEME['neutral'])
     for label in ax.get_yticklabels():
         label.set_color(DARK_THEME['neutral'])
-    
-    return fig
-
-def create_partial_dependence_plot(model, X, feature_idx, feature_name, target_name="GDP", fig=None, ax=None):
-    """
-    Создает график частичной зависимости целевой переменной от конкретного признака.
-    
-    Args:
-        model: Обученная модель sklearn
-        X: Матрица признаков, используемая для обучения модели
-        feature_idx: Индекс признака, для которого строится график частичной зависимости
-        feature_name: Название признака
-        target_name: Название целевой переменной
-        fig (matplotlib.figure.Figure): Существующая фигура (опционально)
-        ax (matplotlib.axes.Axes): Существующая ось (опционально)
-    
-    Returns:
-        matplotlib.figure.Figure: Объект фигуры с графиком частичной зависимости
-    """
-    # Создаем горизонтальную фигуру, если она не передана
-    if fig is None or ax is None:
-        fig, ax = plt.subplots(figsize=(10, 5))
-    
-    # Рассчитываем частичную зависимость
-    feature_values = X.iloc[:, feature_idx].unique() if hasattr(X, 'iloc') else np.unique(X[:, feature_idx])
-    feature_values.sort()
-    
-    # Для непрерывных признаков создаем более плотную сетку
-    if len(feature_values) > 10:
-        grid_resolution = 50
-        feature_values = np.linspace(
-            np.min(feature_values),
-            np.max(feature_values),
-            num=grid_resolution
-        )
-    
-    # Рассчитываем частичную зависимость
-    try:
-        # Для scikit-learn >= 0.22
-        pdp_result = partial_dependence(
-            model, X, [feature_idx], 
-            grid_resolution=len(feature_values) if len(feature_values) < 50 else 50,
-            kind='average'
-        )
-        pdp_values = pdp_result['average'][0]
-        pdp_feature_values = pdp_result['values'][0]
-    except TypeError:
-        # Для более старых версий scikit-learn
-        pdp_feature_values, pdp_values = partial_dependence(
-            model, X, [feature_idx], 
-            grid_resolution=len(feature_values) if len(feature_values) < 50 else 50
-        )
-        pdp_values = pdp_values[0]
-        pdp_feature_values = pdp_feature_values[0]
-    
-    # Строим график
-    ax.plot(pdp_feature_values, pdp_values, '-', color='#1f77b4', linewidth=2)
-    ax.scatter(pdp_feature_values, pdp_values, color='#1f77b4', s=25)
-    
-    # Добавляем полиномиальную аппроксимацию для более наглядного отображения тренда
-    from sklearn.preprocessing import PolynomialFeatures
-    from sklearn.linear_model import LinearRegression
-    from sklearn.pipeline import Pipeline
-    
-    # Создаем полиномиальную регрессию 3 степени
-    X_poly = pdp_feature_values.reshape(-1, 1)
-    y_poly = pdp_values
-    
-    # Строим модель полиномиальной регрессии
-    poly_degree = min(3, len(pdp_feature_values) - 1)  # Не более 3, но не больше чем кол-во точек - 1
-    poly_model = Pipeline([
-        ('poly', PolynomialFeatures(degree=poly_degree)),
-        ('linear', LinearRegression())
-    ])
-    
-    poly_model.fit(X_poly, y_poly)
-    
-    # Создаем более плотную сетку для отрисовки кривой
-    X_plot = np.linspace(min(pdp_feature_values), max(pdp_feature_values), 100).reshape(-1, 1)
-    y_plot = poly_model.predict(X_plot)
-    
-    # Рисуем линию тренда
-    ax.plot(X_plot, y_plot, '--', color='#ff7f0e', linewidth=1.5, label=f'Тренд (полином {poly_degree} степени)')
-    
-    # Находим точки максимума и минимума на тренде
-    max_idx = np.argmax(y_plot)
-    min_idx = np.argmin(y_plot)
-    
-    # Отмечаем точки максимума и минимума
-    ax.scatter(X_plot[max_idx], y_plot[max_idx], color='green', s=60, marker='^', 
-              label=f'Максимум: {X_plot[max_idx][0]:.2f}')
-    ax.scatter(X_plot[min_idx], y_plot[min_idx], color='red', s=60, marker='v', 
-              label=f'Минимум: {X_plot[min_idx][0]:.2f}')
-    
-    # Добавляем среднее значение целевой переменной как горизонтальную линию
-    ax.axhline(y=np.mean(pdp_values), color='gray', linestyle='--', alpha=0.7,
-              label=f'Среднее {target_name}')
-    
-    # Оформление графика с меньшими размерами шрифтов
-    ax.set_xlabel(feature_name, fontsize=11)
-    ax.set_ylabel(f'{target_name}', fontsize=11)
-    ax.set_title(f'Частичная зависимость {target_name} от {feature_name}', fontsize=12)
-    ax.grid(True, linestyle='--', alpha=0.7)
-    ax.legend(loc='best', fontsize=9)
-    
-    # Улучшаем макет
-    fig.tight_layout(pad=0.5)
     
     return fig 

@@ -122,7 +122,7 @@ class ModelDisplayFrame(tk.Frame):
             width=3,
             height=1
         )
-        exit_button.place(x=self.parent.winfo_screenwidth() - 80, y=10)
+        exit_button.place(relx=0.98, y=10, anchor='ne')
         
         # Заголовок
         title_label = tk.Label(

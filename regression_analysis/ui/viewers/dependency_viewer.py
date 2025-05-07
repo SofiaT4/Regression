@@ -18,9 +18,7 @@ from ui.components.ui_helpers import center_window, RussianNavigationToolbar
 from utils.visualization.dependency_plots import (
     create_scatter_plot,
     create_multi_scatter_plot,
-    create_3d_plot,
-    create_heatmap_plot,
-    create_partial_dependence_plot
+    create_heatmap_plot
 )
 from ui.components.theme_manager import DARK_THEME, get_chart_colors
 
@@ -32,9 +30,7 @@ class DependencyViewer(ttk.Frame):
     Позволяет пользователю создавать графики:
     - Диаграммы рассеяния (ВВП vs одна переменная)
     - Множественные диаграммы рассеяния
-    - 3D-графики зависимостей
     - Тепловые карты корреляций
-    - Графики частичной зависимости
     """
     def __init__(self, parent, df, stats_dict, model_dict, year_range, age_groups=None, y=None):
         """
@@ -78,7 +74,6 @@ class DependencyViewer(ttk.Frame):
         self.current_year = tk.StringVar(value=str(self.max_year))
         self.x_var = tk.StringVar()  # Переменная для оси X
         self.y_var = tk.StringVar(value="ВВП")  # Переменная для оси Y
-        self.z_var = tk.StringVar()  # Переменная для оси Z (для 3D)
         self.selected_features = []  # Выбранные признаки для множественной регрессии
         
         # Создаем интерфейс
@@ -87,8 +82,6 @@ class DependencyViewer(ttk.Frame):
         # Устанавливаем начальные значения
         if self.feature_names:
             self.x_var.set(self.feature_names[0])
-            if len(self.feature_names) > 1:
-                self.z_var.set(self.feature_names[1])
     
     def apply_dark_theme_to_matplotlib(self):
         """Применяет темную тему к графикам matplotlib"""
@@ -147,9 +140,7 @@ class DependencyViewer(ttk.Frame):
         types = [
             ("Диаграмма рассеяния", "scatter"),
             ("Множественная диаграмма", "multi_scatter"),
-            ("3D график", "3d"),
-            ("Тепловая карта", "heatmap"),
-            ("Частичная зависимость", "partial_dependence")
+            ("Тепловая карта", "heatmap")
         ]
         
         for text, value in types:
@@ -209,6 +200,12 @@ class DependencyViewer(ttk.Frame):
         
         plot_type = self.plot_type.get()
         
+        # Меняем заголовок области для тепловой карты
+        if plot_type == "heatmap":
+            self.variables_frame.config(text="Описание")
+        else:
+            self.variables_frame.config(text="Переменные")
+        
         # Создаем виджеты для каждого типа графика
         if plot_type == "scatter":
             # Для диаграммы рассеяния нужны X и Y
@@ -244,41 +241,20 @@ class DependencyViewer(ttk.Frame):
             y_cb.grid(row=len(self.feature_names)+1, column=1, sticky='ew', padx=5, pady=2)
             self._style_combobox(y_cb)
             
-        elif plot_type == "3d":
-            # Для 3D графика нужны X, Y, Z
-            ttk.Label(self.variables_frame, text="Ось X:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
-            x_cb = ttk.Combobox(self.variables_frame, textvariable=self.x_var, values=self.feature_names, state="readonly")
-            x_cb.grid(row=0, column=1, sticky='ew', padx=5, pady=2)
-            self._style_combobox(x_cb)
-            
-            ttk.Label(self.variables_frame, text="Ось Y:").grid(row=1, column=0, sticky='w', padx=5, pady=2)
-            y_cb = ttk.Combobox(self.variables_frame, textvariable=self.y_var, values=[self.graph_variables[0]], state="readonly")
-            y_cb.grid(row=1, column=1, sticky='ew', padx=5, pady=2)
-            self._style_combobox(y_cb)
-            
-            ttk.Label(self.variables_frame, text="Ось Z:").grid(row=2, column=0, sticky='w', padx=5, pady=2)
-            z_cb = ttk.Combobox(self.variables_frame, textvariable=self.z_var, values=self.feature_names, state="readonly")
-            z_cb.grid(row=2, column=1, sticky='ew', padx=5, pady=2)
-            self._style_combobox(z_cb)
-            
         elif plot_type == "heatmap":
-            # Для тепловой карты не нужны дополнительные параметры
-            ttk.Label(self.variables_frame, text="Тепловая карта показывает корреляции\nмежду всеми экономическими показателями").grid(row=0, column=0, padx=5, pady=10)
+            # Для тепловой карты не нужны дополнительные переменные
+            label = ttk.Label(
+                self.variables_frame,
+                text=(
+                    "Тепловая карта показывает коэффициенты корреляции между всеми экономическими переменными и ВВП.\n"
+                    "Ячейки отражают силу и направление взаимосвязи: чем ближе значение к 1 или -1, тем сильнее положительная или отрицательная связь.\n"
+                    "Яркие цвета выделяют наиболее значимые корреляции."
+                ),
+                wraplength=320,
+                justify="left"
+            )
+            label.pack(anchor="w", padx=8, pady=8)
             
-        elif plot_type == "partial_dependence":
-            # Для частичной зависимости нужна переменная X
-            ttk.Label(self.variables_frame, text="Выберите переменную:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
-            x_cb = ttk.Combobox(self.variables_frame, textvariable=self.x_var, values=self.feature_names, state="readonly")
-            x_cb.grid(row=0, column=1, sticky='ew', padx=5, pady=2)
-            self._style_combobox(x_cb)
-            
-            ttk.Label(self.variables_frame, text="Модель:").grid(row=1, column=0, sticky='w', padx=5, pady=2)
-            model_cb = ttk.Combobox(self.variables_frame, values=list(self.model_dict.keys()), state="readonly")
-            model_cb.grid(row=1, column=1, sticky='ew', padx=5, pady=2)
-            model_cb.current(0)
-            self._style_combobox(model_cb)
-            self.model_var = model_cb
-    
     def _style_combobox(self, combobox):
         """
         Дополнительная стилизация выпадающих списков для лучшей видимости.
@@ -381,7 +357,7 @@ class DependencyViewer(ttk.Frame):
         
         # Общие данные
         # ВВП всегда на оси Y для обычных графиков
-        y_data = self.y  # Используем переданную переменную y вместо поиска в df
+        y_data = self.y
         
         try:
             if plot_type == "scatter":
@@ -436,37 +412,6 @@ class DependencyViewer(ttk.Frame):
                 # Увеличиваем отступы для множественной диаграммы
                 self.figure.subplots_adjust(bottom=0.23, left=0.12, right=0.92, top=0.85)
                 
-            elif plot_type == "3d":
-                # 3D график
-                x_feature = self.x_var.get()
-                z_feature = self.z_var.get()
-                
-                if x_feature == z_feature:
-                    messagebox.showwarning("Предупреждение", "Выберите разные признаки для осей X и Z")
-                    return
-                
-                X_selected = self.df[[x_feature, z_feature]]
-                
-                # Создаем 3D ось
-                ax = self.figure.add_subplot(111, projection='3d')
-                
-                # Используем существующую фигуру для 3D графика
-                create_3d_plot(
-                    X=X_selected,
-                    y=y_data,
-                    feature_names=[x_feature, z_feature],
-                    target_name="ВВП",
-                    years=self.years,
-                    fig=self.figure,
-                    ax=ax
-                )
-                
-                # Применяем темную тему к созданному графику
-                self.apply_dark_theme_to_figure(self.figure)
-                
-                # Корректируем положение 3D графика
-                self.figure.subplots_adjust(bottom=0.23, left=0.12, right=0.92, top=0.85)
-                
             elif plot_type == "heatmap":
                 # Тепловая карта корреляций
                 # Создаем DataFrame с признаками и целевой переменной
@@ -487,78 +432,8 @@ class DependencyViewer(ttk.Frame):
                 # Применяем темную тему к созданному графику
                 self.apply_dark_theme_to_figure(self.figure)
                 
-                # Корректируем положение тепловой карты
-                self.figure.subplots_adjust(bottom=0.23, left=0.15, right=0.92, top=0.85)
-                
-            elif plot_type == "partial_dependence":
-                # График частичной зависимости
-                x_feature = self.x_var.get()
-                model_name = self.model_var.get()
-                
-                if not model_name:
-                    messagebox.showwarning("Предупреждение", "Выберите модель для анализа")
-                    return
-                
-                # В зависимости от структуры модели, мы можем получить доступ к модели по-разному
-                model = self.model_dict[model_name]
-                
-                # Проверяем, есть ли метод get_model()
-                if hasattr(model, 'get_model'):
-                    sklearn_model = model.get_model()
-                    feature_names = model.get_feature_names() if hasattr(model, 'get_feature_names') else None
-                    X_model = model.get_x() if hasattr(model, 'get_x') else None
-                else:
-                    # Если это просто объект модели sklearn
-                    sklearn_model = model
-                    # Пытаемся найти имена признаков и данные из других источников
-                    if model_name == 'all_groups':
-                        feature_names = self.age_groups if hasattr(self, 'age_groups') else None
-                        X_model = self.df[feature_names] if feature_names else None
-                    elif model_name == 'unemployed':
-                        feature_names = ['Численность безработных']
-                        X_model = self.df[feature_names] if 'Численность безработных' in self.df.columns else None
-                    elif model_name == 'combined':
-                        if hasattr(self, 'age_groups'):
-                            feature_names = self.age_groups + ['Численность безработных']
-                            X_model = self.df[feature_names] if all(f in self.df.columns for f in feature_names) else None
-                        else:
-                            feature_names = None
-                            X_model = None
-                
-                # Если мы не смогли найти имена признаков или данные
-                if not feature_names or not X_model:
-                    messagebox.showwarning("Предупреждение", 
-                                         f"Не удалось получить данные для модели {model_name}")
-                    return
-                
-                # Находим индекс признака
-                feature_idx = None
-                if x_feature in feature_names:
-                    feature_idx = feature_names.index(x_feature)
-                else:
-                    messagebox.showwarning("Предупреждение", 
-                                         f"Признак {x_feature} не используется в модели {model_name}")
-                    return
-                
-                # Создаем базовую ось
-                ax = self.figure.add_subplot(111)
-                
-                # Создаем график частичной зависимости на существующей фигуре
-                create_partial_dependence_plot(
-                    model=sklearn_model,
-                    X=X_model,
-                    feature_idx=feature_idx,
-                    feature_name=x_feature,
-                    target_name="ВВП",
-                    fig=self.figure,
-                    ax=ax
-                )
-                
-                # Применяем темную тему к созданному графику
-                self.apply_dark_theme_to_figure(self.figure)
-                
-                # Корректируем положение графика частичной зависимости
-                self.figure.subplots_adjust(bottom=0.23, left=0.12, right=0.92, top=0.85)
+                # Увеличиваем отступы для тепловой карты, чтобы подписи и заголовок были видны полностью
+                self.figure.subplots_adjust(bottom=0.32, left=0.28, right=0.92, top=0.90)
             
             # Обновляем холст с корректным размером
             # Убедимся, что текущий размер фигуры соответствует размеру виджета
