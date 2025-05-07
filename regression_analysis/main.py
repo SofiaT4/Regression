@@ -36,6 +36,33 @@ except ImportError as e:
     logger.error(f"Ошибка при импорте основного класса приложения: {e}")
     raise
 
+# --- Monkey-patch для русификации окна настройки subplot ---
+def patch_subplot_tool():
+    import matplotlib
+    from matplotlib.widgets import SubplotTool
+    import tkinter as tk
+
+    orig_init = SubplotTool.__init__
+
+    def russian_init(self, *args, **kwargs):
+        orig_init(self, *args, **kwargs)
+        # Получаем ссылку на окно
+        toolfig = getattr(self, 'toolfig', None)
+        if toolfig is None:
+            toolfig = getattr(self, '_toolfig', None)
+        # Заголовок окна
+        if toolfig is not None:
+            toolfig.wm_title("Настройка подграфиков")
+            # Инструкция
+            for widget in toolfig.winfo_children():
+                if isinstance(widget, tk.Label) and "Click on slider" in widget.cget("text"):
+                    widget.config(text="Щелкните на ползунке для настройки параметров графика")
+
+    SubplotTool.__init__ = russian_init
+
+patch_subplot_tool()
+# --- Конец monkey-patch ---
+
 def main():
     """
     Основная функция, запускающая приложение регрессионного анализа.

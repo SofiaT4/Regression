@@ -222,46 +222,20 @@ class RussianNavigationToolbar(NavigationToolbar2Tk):
     
     def configure_subplots(self, *args):
         """Настройка графика с русификацией окна настройки."""
-        # Вызываем метод напрямую из класса, а не через экземпляр
-        # Это решит проблему с открытием окна
         result = NavigationToolbar2Tk.configure_subplots(self, *args)
-        
-        # Если конфигурационное окно было создано
-        if hasattr(self, "subplot_tool") and self.subplot_tool:
-            # Русифицируем надписи и подсказки в окне настройки
-            # Используем title() для Tkinter окна вместо set_title
-            self.subplot_tool.title("Настройка подграфиков")
+        # Получаем ссылку на окно
+        toolfig = getattr(self.subplot_tool, 'toolfig', None)
+        if toolfig is None:
+            toolfig = getattr(self.subplot_tool, '_toolfig', None)
+        if toolfig is not None:
+            toolfig.wm_title("Настройка подграфиков")
 
             # Переводим текст инструкции
-            for widget in self.subplot_tool.winfo_children():
-                if isinstance(widget, tk.Label):
-                    if "Click on slider" in widget.cget("text"):
-                        widget.config(text="Щелкните на ползунке для настройки параметров графика")
+            for widget in toolfig.winfo_children():
+                if isinstance(widget, tk.Label) and "Click on slider" in widget.cget("text"):
+                    widget.config(text="Щелкните на ползунке для настройки параметров графика")
 
-            # Переводим подписи ползунков
-            for slider_label in self.subplot_tool.winfo_children():
-                if isinstance(slider_label, tk.Label):
-                    label_text = slider_label.cget("text")
-                    if label_text == "left":
-                        slider_label.config(text="левый")
-                    elif label_text == "bottom":
-                        slider_label.config(text="нижний")
-                    elif label_text == "right":
-                        slider_label.config(text="правый")
-                    elif label_text == "top":
-                        slider_label.config(text="верхний")
-                    elif label_text == "wspace":
-                        slider_label.config(text="гор. отступ")
-                    elif label_text == "hspace":
-                        slider_label.config(text="верт. отступ")
-
-            # Переводим кнопку "Close"
-            for button in self.subplot_tool.winfo_children():
-                if isinstance(button, tk.Button) and button.cget("text") == "Close":
-                    button.config(text="Закрыть")
-                    
-            # Принудительное обновление окна
-            self.subplot_tool.update()
+            toolfig.update()
 
         self.set_message('Настройка графика')
         return result
@@ -319,9 +293,9 @@ class RussianNavigationToolbar(NavigationToolbar2Tk):
         NavigationToolbar2Tk.mouse_move(self, event)
         
         # Переопределяем сообщения в зависимости от режима
-        if self.mode == 'zoom rect' and self._lastCursor == 2:  # ZOOM
+        if self.mode == 'zoom rect' and self._last_cursor == 2:  # ZOOM
             self.set_message('Масштабирование области...')
-        elif self.mode == 'pan/zoom' and self._lastCursor == 1:  # PAN
+        elif self.mode == 'pan/zoom' and self._last_cursor == 1:  # PAN
             self.set_message('Панорамирование...')
     
     def scroll_event(self, event):
