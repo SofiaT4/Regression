@@ -2,6 +2,10 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import os
+import sys
 
 from ui.viewers.graph_viewer import GraphViewer
 from ui.viewers.coefficient_viewer import CoefficientViewer
@@ -10,6 +14,7 @@ from utils.visualization.graph_manager import export_all_plots
 from utils.export.pdf_exporter import export_to_pdf
 from core.models.model_formatter import format_equation_for_display, format_equation_for_charts
 from ui.components.theme_manager import DARK_THEME, style_treeview_tags
+from ui.components.ui_helpers import center_window, RussianNavigationToolbar
 
 class ModelDisplayFrame(tk.Frame):
     """
@@ -570,8 +575,12 @@ class ModelDisplayFrame(tk.Frame):
             
             # Создаем DataFrame и экспортируем в CSV
             if data:
-                df = pd.DataFrame(data, columns=["Показатель", "Модель от численности рабочих", 
-                                            "Модель от безработицы", "Комбинированная модель"])
+                df = pd.DataFrame(data, columns=[
+                    "Показатель", 
+                    "Модель от численности рабочих", 
+                    "Модель от безработицы", 
+                    "Комбинированная модель"
+                ])
                 df.to_csv(file_path, index=False, sep=';', encoding='utf-8-sig')
                 messagebox.showinfo("Экспорт", f"Сравнение моделей экспортировано в файл:\n{file_path}")
             else:
@@ -945,10 +954,19 @@ class ModelDisplayFrame(tk.Frame):
         model = self.models[self.current_model]
         y_pred = self.predictions[self.current_model]
         
+        # Выбираем правильное название для заголовка
+        model_title = self.current_model
+        if self.current_model == 'all_groups':
+            model_title = "Численность рабочих"
+        elif self.current_model == 'unemployed':
+            model_title = "Безработица"
+        elif self.current_model == 'combined':
+            model_title = "Комбинированная модель"
+        
         file_path = filedialog.asksaveasfilename(
             defaultextension=".pdf",
             filetypes=[("PDF файлы", "*.pdf"), ("Все файлы", "*.*")],
-            title=f"Экспортировать графики модели '{self.current_model}'"
+            title=f"Экспортировать графики модели '{model_title}'"
         )
         
         if file_path:
@@ -969,11 +987,20 @@ class ModelDisplayFrame(tk.Frame):
             # Получаем данные текущей модели
             model_stats = self.stats_dict[self.current_model]
             
+            # Русские названия моделей для отчета
+            model_name_ru = self.current_model
+            if self.current_model == 'all_groups':
+                model_name_ru = "Численность рабочих"
+            elif self.current_model == 'unemployed':
+                model_name_ru = "Безработные"
+            elif self.current_model == 'combined':
+                model_name_ru = "Численность рабочих и Безработицы"
+            
             # Создаем отчет
             export_to_pdf(
                 data=model_stats,
                 filename=file_path,
-                title=f"Отчет о регрессионном анализе - {self.current_model}",
+                title=f"Отчет о регрессионном анализе - {model_name_ru}",
                 report_type="detailed",
                 open_after_save=True
             )
@@ -1187,7 +1214,6 @@ class ModelDisplayFrame(tk.Frame):
         comparison_window.resizable(True, True)
         
         # Центрируем окно
-        from ui.components.ui_helpers import center_window
         center_window(comparison_window, 800, 600)
         
         # Создаем фрейм для графика
@@ -1195,16 +1221,11 @@ class ModelDisplayFrame(tk.Frame):
         frame.pack(fill=tk.BOTH, expand=True)
         
         try:
-            # Импортируем необходимые модули
-            import matplotlib.pyplot as plt
-            from matplotlib.figure import Figure
-            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-            
             # Применяем стиль темной темы к графику
             apply_chart_style(plt)
             
             # Создаем график для сравнения предсказаний моделей
-            fig = Figure(figsize=(10, 6), dpi=100, facecolor=DARK_THEME['primary'])
+            fig = plt.figure(figsize=(10, 6), dpi=100, facecolor=DARK_THEME['primary'])
             ax = fig.add_subplot(111)
             ax.set_facecolor(DARK_THEME['bg'])
             
@@ -1222,8 +1243,8 @@ class ModelDisplayFrame(tk.Frame):
                 'combined': '#28a745'
             }
             
-            # Словарь с русскими названиями моделей
-            model_names = {
+            # Русские названия моделей для графиков
+            model_names_ru = {
                 'all_groups': 'Модель от численности рабочих',
                 'unemployed': 'Модель от безработицы',
                 'combined': 'Комбинированная модель'
@@ -1233,7 +1254,7 @@ class ModelDisplayFrame(tk.Frame):
             for model_type, color in colors.items():
                 if model_type in self.predictions:
                     ax.plot(years, self.predictions[model_type], linestyle='--', 
-                        color=color, linewidth=2, label=model_names[model_type])
+                        color=color, linewidth=2, label=model_names_ru.get(model_type, model_type))
             
             # Настраиваем график
             ax.set_title('Сравнение предсказаний моделей', fontsize=14, pad=20, color=DARK_THEME['neutral'])
@@ -1272,19 +1293,9 @@ class ModelDisplayFrame(tk.Frame):
             toolbar_frame = tk.Frame(frame, bg=DARK_THEME['primary'])
             toolbar_frame.pack(fill=tk.X)
             
-            toolbar = NavigationToolbar2Tk(canvas, toolbar_frame)
+            toolbar = RussianNavigationToolbar(canvas, toolbar_frame, theme=DARK_THEME)
             toolbar.update()
-            toolbar.config(background=DARK_THEME['primary'])
-            
-            # Изменяем цвет всех кнопок на панели инструментов
-            for button in toolbar.winfo_children():
-                if isinstance(button, tk.Button):
-                    button.config(
-                        bg=DARK_THEME['bg_light'],
-                        fg=DARK_THEME['neutral'],
-                        activebackground=DARK_THEME['accent'],
-                        activeforeground=DARK_THEME['text_light']
-                    )
+            toolbar.pack(side=tk.BOTTOM, fill=tk.X)
             
             # Добавляем таблицу качества моделей
             table_frame = tk.Frame(comparison_window, padx=10, pady=5, bg=DARK_THEME['primary'])
@@ -1458,5 +1469,4 @@ class ModelDisplayFrame(tk.Frame):
         
         if response:
             # Если пользователь подтвердил выход, завершаем приложение
-            import sys
             sys.exit(0)  # Полное завершение приложения
