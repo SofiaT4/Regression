@@ -163,6 +163,19 @@ class DependencyViewer(ttk.Frame):
             command=self.create_plot
         ).pack(fill=tk.X, padx=5, pady=10)
         
+        # Блок для интерпретации результатов (под кнопкой)
+        self.interpretation_frame = ttk.LabelFrame(self.control_frame, text="Интерпретация")
+        self.interpretation_frame.pack(fill=tk.X, padx=5, pady=5)
+        self.interpretation_label = tk.Label(
+            self.interpretation_frame,
+            text="",
+            wraplength=320,
+            justify="left",
+            bg=DARK_THEME['primary'],
+            fg=DARK_THEME['neutral']
+        )
+        self.interpretation_label.pack(anchor="w", padx=8, pady=8)
+        
         # Создаем фрейм для графика справа
         self.graph_frame = tk.Frame(main_frame, bg=DARK_THEME['primary'])
         self.graph_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -322,13 +335,13 @@ class DependencyViewer(ttk.Frame):
         """Обработчик изменения типа графика."""
         # Очищаем текущий график при смене типа, но не создаем новую фигуру
         self.figure.clear()
-        
+        # Очищаем интерпретацию
+        if hasattr(self, 'interpretation_label'):
+            self.interpretation_label.config(text="")
         # Обновляем элементы управления
         self.setup_variable_controls()
-        
         # Полностью пересоздаем канвас и тулбар
         self._reinitialize_canvas_and_toolbar()
-        
         # Перерисовываем канвас
         self.canvas.draw()
     
@@ -351,14 +364,8 @@ class DependencyViewer(ttk.Frame):
         Создает и отображает выбранный тип графика.
         """
         plot_type = self.plot_type.get()
-        
-        # Очищаем текущую фигуру, но НЕ создаем новую
         self.figure.clear()
-        
-        # Общие данные
-        # ВВП всегда на оси Y для обычных графиков
         y_data = self.y
-        
         try:
             if plot_type == "scatter":
                 # Диаграмма рассеяния
@@ -382,6 +389,7 @@ class DependencyViewer(ttk.Frame):
                 
                 # Увеличиваем отступы для диаграммы рассеяния, чтобы были видны метки на нижней оси
                 self.figure.subplots_adjust(bottom=0.23, left=0.12, right=0.92, top=0.85)
+                self.update_interpretation("scatter")
                 
             elif plot_type == "multi_scatter":
                 # Множественная диаграмма рассеяния
@@ -411,6 +419,7 @@ class DependencyViewer(ttk.Frame):
                 
                 # Увеличиваем отступы для множественной диаграммы
                 self.figure.subplots_adjust(bottom=0.23, left=0.12, right=0.92, top=0.85)
+                self.update_interpretation("multi_scatter")
                 
             elif plot_type == "heatmap":
                 # Тепловая карта корреляций
@@ -434,6 +443,7 @@ class DependencyViewer(ttk.Frame):
                 
                 # Увеличиваем отступы для тепловой карты, чтобы подписи и заголовок были видны полностью
                 self.figure.subplots_adjust(bottom=0.32, left=0.28, right=0.92, top=0.90)
+                self.update_interpretation(data_for_corr.corr())
             
             # Обновляем холст с корректным размером
             # Убедимся, что текущий размер фигуры соответствует размеру виджета
@@ -496,4 +506,100 @@ class DependencyViewer(ttk.Frame):
                 legend.get_frame().set_facecolor(DARK_THEME['bg'])
                 legend.get_frame().set_edgecolor(DARK_THEME['neutral'])
                 for text in legend.get_texts():
-                    text.set_color(DARK_THEME['neutral']) 
+                    text.set_color(DARK_THEME['neutral'])
+    
+    def update_interpretation(self, corr_matrix_or_type):
+        """
+        Обновляет текст интерпретации под кнопкой 'Построить график'.
+        Для тепловой карты — анализирует корреляции, для других графиков — выводит базовое описание.
+        Для множественной диаграммы — рассчитывает уравнение тренда и R² по выбранным переменным.
+        """
+        if isinstance(corr_matrix_or_type, str):
+            if corr_matrix_or_type == "multi_scatter":
+                # Интерпретация для множественной диаграммы
+                selected_features = self.get_selected_features()
+                if not selected_features:
+                    self.interpretation_label.config(text="Выберите хотя бы одну переменную для анализа.")
+                    return
+                import numpy as np
+                from sklearn.metrics import r2_score
+                X = self.df[selected_features]
+                y = self.y
+                if len(selected_features) == 1:
+                    x = X[selected_features[0]]
+                    coef = np.polyfit(x, y, 1)
+                    poly1d_fn = np.poly1d(coef)
+                    y_pred = poly1d_fn(x)
+                    r2 = r2_score(y, y_pred)
+                    sign = "положительный" if coef[0] > 0 else "отрицательный"
+                    text = (
+                        f"Выбрана переменная: {selected_features[0]}\n"
+                        f"Уравнение тренда: y = {coef[0]:.2f}x + {coef[1]:.2f}\n"
+                        f"Коэффициент детерминации R² = {r2:.3f}\n"
+                        f"Связь между переменной и ВВП — {sign}.\n"
+                        "Положительный коэффициент означает, что с ростом переменной ВВП растет. "
+                        "Отрицательный — что с ростом переменной ВВП снижается."
+                    )
+                else:
+                    X_sum = X.sum(axis=1)
+                    coef = np.polyfit(X_sum, y, 1)
+                    poly1d_fn = np.poly1d(coef)
+                    y_pred = poly1d_fn(X_sum)
+                    r2 = r2_score(y, y_pred)
+                    sign = "положительный" if coef[0] > 0 else "отрицательный"
+                    features_str = ", ".join(selected_features)
+                    text = (
+                        f"Выбраны переменные: {features_str}\n"
+                        f"Анализируется сумма выбранных переменных.\n"
+                        f"Уравнение тренда: y = {coef[0]:.2f}x + {coef[1]:.2f}\n"
+                        f"Коэффициент детерминации R² = {r2:.3f}\n"
+                        f"Связь между суммой переменных и ВВП — {sign}.\n"
+                        "Положительный коэффициент означает, что с ростом суммы переменных ВВП растет. "
+                        "Отрицательный — что с ростом суммы переменных ВВП снижается."
+                    )
+                self.interpretation_label.config(text=text)
+                return
+            elif corr_matrix_or_type == "scatter":
+                # Интерпретация для scatter-графика
+                import numpy as np
+                from sklearn.metrics import r2_score
+                x_feature = self.x_var.get()
+                x = self.df[x_feature]
+                y = self.y
+                coef = np.polyfit(x, y, 1)
+                poly1d_fn = np.poly1d(coef)
+                y_pred = poly1d_fn(x)
+                r2 = r2_score(y, y_pred)
+                sign = "положительный" if coef[0] > 0 else "отрицательный"
+                text = (
+                    f"Выбрана переменная: {x_feature}\n"
+                    f"Уравнение тренда: y = {coef[0]:.2f}x + {coef[1]:.2f}\n"
+                    f"Коэффициент детерминации R² = {r2:.3f}\n"
+                    f"Связь между переменной и ВВП — {sign}.\n"
+                    "Положительный коэффициент означает, что с ростом переменной ВВП растет. "
+                    "Отрицательный — что с ростом переменной ВВП снижается."
+                )
+                self.interpretation_label.config(text=text)
+                return
+            # Для других типов
+            self.interpretation_label.config(text="")
+            return
+        corr_matrix = corr_matrix_or_type
+        if 'ВВП' not in corr_matrix.columns:
+            self.interpretation_label.config(text="Не удалось вычислить интерпретацию: нет столбца 'ВВП'.")
+            return
+        vvp_corr = corr_matrix['ВВП'].drop('ВВП', errors='ignore')
+        if vvp_corr.empty:
+            self.interpretation_label.config(text="Недостаточно данных для интерпретации.")
+            return
+        max_corr = vvp_corr.idxmax()
+        min_corr = vvp_corr.idxmin()
+        max_val = vvp_corr[max_corr]
+        min_val = vvp_corr[min_corr]
+        text = (
+            f"Наиболее сильная положительная связь с ВВП: {max_corr} (коэффициент корреляции: {max_val:.2f})\n"
+            f"Наиболее сильная отрицательная связь с ВВП: {min_corr} (коэффициент корреляции: {min_val:.2f})\n\n"
+            "Положительная корреляция означает, что с ростом этого показателя ВВП также растет.\n"
+            "Отрицательная корреляция — что с ростом этого показателя ВВП снижается."
+        )
+        self.interpretation_label.config(text=text) 

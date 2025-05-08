@@ -216,60 +216,26 @@ def create_multi_scatter_plot(X, y, feature_names, target_name="GDP", fig=None, 
         ax.text(0.05, 0.95, equation, transform=ax.transAxes, fontsize=10, 
                verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
     else:
-        # Обучаем модель множественной регрессии
-        model = LinearRegression()
-        model.fit(X, y)
+        # Если выбрано несколько переменных, ось X — сумма значений выбранных переменных, подпись — их список
+        X_sum = X[feature_names].sum(axis=1)
+        features_str = ", ".join(feature_names)
+        ax.scatter(X_sum, y, color='blue', alpha=0.6, edgecolors='white')
         
-        # Подготавливаем данные для графика
-        y_pred = model.predict(X)
-        
-        # Строим график фактических и предсказанных значений
-        ax.scatter(y, y_pred, color='blue', alpha=0.6, edgecolors='white')
-        
-        # Добавляем диагональную линию (идеальный прогноз)
-        min_val = min(min(y), min(y_pred))
-        max_val = max(max(y), max(y_pred))
-        ax.plot([min_val, max_val], [min_val, max_val], 'r--', linewidth=2)
+        # Добавляем линию тренда
+        coef = np.polyfit(X_sum, y, 1)
+        poly1d_fn = np.poly1d(coef)
+        x_range = np.linspace(X_sum.min(), X_sum.max(), 100)
+        ax.plot(x_range, poly1d_fn(x_range), 'r--', linewidth=2)
         
         # Настраиваем оси
-        ax.set_xlabel(f'Фактический {target_name}', fontsize=11)
-        ax.set_ylabel(f'Предсказанный {target_name}', fontsize=11)
-        ax.set_title(f'Множественная регрессия: {target_name} и выбранные факторы', fontsize=12)
+        ax.set_xlabel(features_str, fontsize=11)
+        ax.set_ylabel(target_name, fontsize=11)
+        ax.set_title(f'Зависимость {target_name} от суммы: {features_str}', fontsize=12)
         ax.grid(True, linestyle='--', alpha=0.7)
         
-        # Добавляем формулу множественной регрессии, упрощаем для длинных формул
-        if n_features <= 3:
-            equation = f"y = {model.intercept_:.2f}"
-            for i, (coef, feature) in enumerate(zip(model.coef_, feature_names)):
-                equation += f" + {coef:.2f}·{feature}"
-        else:
-            equation = f"y = {model.intercept_:.2f}"
-            for i, (coef, feature) in enumerate(zip(model.coef_, feature_names)):
-                if i < 2:  # Показываем только первые два коэффициента
-                    equation += f" + {coef:.2f}·{feature}"
-                elif i == 2:
-                    equation += " + ..."
-                    break
-        
-        # Расчет R²
-        r2 = r2_score(y, y_pred)
-        
-        # Добавляем текст с уравнением и R² в верхний левый угол
-        font_size = min(10, max(7, 12 - n_features * 0.5))  # Уменьшаем размер шрифта при большом количестве признаков
-        ax.text(0.02, 0.98, equation, transform=ax.transAxes, fontsize=font_size, 
-               verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
-        ax.text(0.02, 0.90, f"R² = {r2:.3f}", transform=ax.transAxes, fontsize=font_size,
-               verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
-        
-        # Добавляем аннотацию о переменных с возможностью прокрутки при большом количестве
-        feature_text = "Переменные в модели:\n"
-        max_features_to_show = min(n_features, 5)  # Показываем максимум 5 переменных
-        for i, feature in enumerate(feature_names[:max_features_to_show]):
-            feature_text += f"{i+1}. {feature}\n"
-        if n_features > max_features_to_show:
-            feature_text += f"...и еще {n_features - max_features_to_show} переменных"
-        
-        ax.text(0.02, 0.82, feature_text, transform=ax.transAxes, fontsize=max(7, font_size-1),
+        # Добавляем формулу тренда
+        equation = f"y = {coef[0]:.2f}x + {coef[1]:.2f}"
+        ax.text(0.05, 0.95, equation, transform=ax.transAxes, fontsize=10, 
                verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
     
     # Улучшаем макет и уменьшаем отступы
@@ -278,106 +244,80 @@ def create_multi_scatter_plot(X, y, feature_names, target_name="GDP", fig=None, 
 
 def create_heatmap_plot(data, title="Корреляционная матрица", fig=None, ax=None):
     """
-    Создает тепловую карту корреляций между переменными.
-    
-    Args:
-        data (pd.DataFrame): DataFrame с данными для анализа корреляций
-        title (str): Заголовок графика
-        fig (matplotlib.figure.Figure): Существующая фигура (опционально)
-        ax (matplotlib.axes.Axes): Существующая ось (опционально)
-    
-    Returns:
-        matplotlib.figure.Figure: Объект фигуры с тепловой картой
+    Строит тепловую карту корреляций между экономическими показателями с шаблонными подписями.
     """
     import matplotlib.pyplot as plt
     import seaborn as sns
-    from matplotlib.colors import LinearSegmentedColormap
-    from ui.components.theme_manager import get_text_color_for_background, DARK_THEME
-    
-    # Рассчитываем корреляции
-    corr_matrix = data.corr()
-    
-    # Создаем горизонтальную фигуру, если она не передана
+    from ui.components.theme_manager import DARK_THEME
+    import matplotlib.patheffects as PathEffects
+    import pandas as pd
+
+    # Сопоставление шаблонных названий с возможными вариантами в данных
+    column_map = {
+        "ВВП": ["ввп", "gdp", "валовой", "ввп в текущих ценах"],
+        "Безработные": ["безработные", "численность безработных", "unemploy"],
+        "25-34": ["25-34", "25_34", "25–34"],
+        "35-44": ["35-44", "35_44", "35–44"],
+        "45-49": ["45-49", "45_49", "45–49"],
+        "50-59": ["50-59", "50_59", "50–59"],
+    }
+
+    # Приводим названия столбцов к нижнему регистру для поиска
+    data_columns = {col.lower(): col for col in data.columns}
+
+    # Формируем новый DataFrame с шаблонными названиями
+    selected = {}
+    for template, variants in column_map.items():
+        for variant in variants:
+            for col_lower, col_orig in data_columns.items():
+                if variant in col_lower:
+                    selected[template] = data[col_orig]
+                    break
+            if template in selected:
+                break
+
+    # Оставляем только найденные столбцы, но в нужном порядке
+    ordered_keys = [k for k in column_map.keys() if k in selected]
+    if len(ordered_keys) < 2:
+        raise ValueError("Недостаточно данных для построения корреляционной карты: нужно минимум 2 показателя из шаблона.")
+
+    corr_data = pd.DataFrame({k: selected[k] for k in ordered_keys})
+
+    # Считаем корреляцию
+    corr_matrix = corr_data.corr()
+
+    # Строим тепловую карту
     if fig is None:
-        plt.figure(figsize=(12, 8))
+        plt.figure(figsize=(8, 6))
         fig = plt.gcf()
-    
-    # Используем существующую ось или текущую ось фигуры
     if ax is None:
         ax = fig.add_subplot(111)
-    
-    # Создаем маску для верхнего треугольника
-    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))  # Маска для верхнего треугольника
-    
-    # Получаем значения корреляции для использования в аннотациях
-    annot_values = corr_matrix.values
-    
-    # Создаем матрицу цветов текста для каждой ячейки используя функцию из theme_manager
-    text_colors = []
-    for i in range(annot_values.shape[0]):
-        row_colors = []
-        for j in range(annot_values.shape[1]):
-            if mask[i, j]:  # Если ячейка скрыта (верхний треугольник)
-                row_colors.append('black')  # Значение не важно, так как оно будет скрыто
-            else:
-                # Используем улучшенную функцию определения цвета текста
-                # Делаем цвета более контрастными
-                if annot_values[i, j] > 0.5 or annot_values[i, j] < -0.5:
-                    text_color = 'white'  # Для ярких цветов используем белый
-                else:
-                    text_color = 'black'  # Для светлых цветов используем черный
-                row_colors.append(text_color)
-        text_colors.append(row_colors)
-    
-    # Создаем свою цветовую карту с более яркими цветами для лучшего контраста
-    colors = ["navy", "royalblue", "lightgray", "lightcoral", "darkred"]
-    custom_cmap = LinearSegmentedColormap.from_list("custom_coolwarm", colors, N=100)
-    
-    # Создаем тепловую карту с адаптивными цветами для текста
+
     sns.heatmap(
         corr_matrix,
-        annot=True,              # Добавляем числовые значения
-        fmt=".2f",               # Формат числовых значений (2 знака после запятой)
-        cmap=custom_cmap,        # Используем кастомную цветовую карту для большего контраста
-        mask=mask,               # Маска для верхнего треугольника
-        linewidths=0.8,          # Увеличиваем ширину линий между ячейками для лучшей разделимости
-        cbar_kws={"shrink": 0.6, "pad": 0.03},  # Настройки цветовой шкалы
-        vmin=-1, vmax=1,         # Диапазон значений
-        annot_kws={
-            "size": 12,          # Увеличиваем размер текста для лучшей читаемости
-            "weight": "bold"     # Делаем текст жирным для лучшей видимости
-        },
-        ax=ax                    # Используем переданную ось
+        annot=True,
+        fmt=".2f",
+        cmap="coolwarm",
+        vmin=-1, vmax=1,
+        linewidths=0.8,
+        cbar_kws={"shrink": 0.8, "pad": 0.03},
+        annot_kws={"size": 13, "weight": "bold"},
+        ax=ax
     )
-    
-    # Изменяем цвета текста для каждой аннотации
-    for i, j in zip(*np.where(~mask)):
-        # Получаем индекс текстового элемента
-        idx = i * len(corr_matrix) - int(i * (i + 1) / 2) + j - i - 1
-        
-        # Проверяем, что индекс в пределах допустимого диапазона
-        if idx < len(ax.texts):
-            text = ax.texts[idx]
-            text.set_color(text_colors[i][j])
-    
-    # Настраиваем внешний вид
-    ax.set_title(title, fontsize=16, pad=15, color=DARK_THEME['text_light'])
-    
-    # Увеличиваем отступы и улучшаем метки осей
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Оставляем место внизу для меток
-    
-    # Поворачиваем метки осей и увеличиваем их для лучшей читаемости
-    # Используем 30 градусов для меток оси X для лучшей видимости
-    plt.xticks(rotation=30, ha='right', fontsize=12)
-    plt.yticks(fontsize=12)
-    
-    # Увеличиваем нижнее поле фигуры, чтобы поместились все метки
-    plt.subplots_adjust(bottom=0.28, left=0.18)
-    
-    # Применяем стиль текста для меток осей для соответствия теме
+
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=12)
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=12)
+
+    for text in ax.texts:
+        text.set_path_effects([PathEffects.withStroke(linewidth=2, foreground='black')])
+
+    ax.set_title("Корреляция между экономическими показателями", fontsize=16, pad=15, color=DARK_THEME['text_light'])
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.subplots_adjust(bottom=0.40, left=0.18)
+
     for label in ax.get_xticklabels():
         label.set_color(DARK_THEME['neutral'])
     for label in ax.get_yticklabels():
         label.set_color(DARK_THEME['neutral'])
-    
+
     return fig 
