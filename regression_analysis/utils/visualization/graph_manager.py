@@ -190,7 +190,7 @@ def create_actual_predicted_plot(
     ax.set_title(f'Фактический и прогнозируемый ВВП (модель от {model_names[model_type]})\nR² = {r2:.4f}', 
                  fontsize=14, pad=20, fontweight='bold', color=DARK_THEME['neutral'])
     ax.set_xlabel(x_label, fontsize=12, labelpad=10, color=DARK_THEME['neutral'])
-    ax.set_ylabel('ВВП (в текущих ценах)', fontsize=12, labelpad=10, color=DARK_THEME['neutral'])
+    ax.set_ylabel('ВВП', fontsize=12, labelpad=10, color=DARK_THEME['neutral'])
     
     # Формирование уравнения в зависимости от типа модели
     if model_type == 'unemployed':

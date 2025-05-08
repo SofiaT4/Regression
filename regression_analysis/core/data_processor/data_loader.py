@@ -124,7 +124,7 @@ def prepare_data(df: pd.DataFrame, age_groups: Optional[List[str]] = None) -> Tu
     # Проверяем наличие необходимых колонок
     required_cols = {
         'Год': ['год', 'year'],
-        'ВВП (в текущих ценах)': ['ввп', 'gdp', 'врп', 'валов', 'продукт'],
+        'ВВП': ['ввп', 'gdp', 'врп', 'валов', 'продукт'],
         'Численность безработных': ['безраб', 'unemploy']
     }
     
@@ -144,19 +144,18 @@ def prepare_data(df: pd.DataFrame, age_groups: Optional[List[str]] = None) -> Tu
                 if req_col == 'Год':
                     df['Год'] = range(2000, 2000 + len(df))
                     print("Колонка 'Год' не найдена. Создана последовательность лет, начиная с 2000.")
-                elif req_col == 'ВВП (в текущих ценах)':
+                elif req_col == 'ВВП':
                     # Ищем любую числовую колонку, которая еще не использована
                     numeric_cols = df.select_dtypes(include=[np.number]).columns
                     if len(numeric_cols) > 0:
                         for col in numeric_cols:
                             if col != 'Год' and col != 'Численность безработных':
-                                df['ВВП (в текущих ценах)'] = df[col]
+                                df['ВВП'] = df[col]
                                 print(f"Колонка '{col}' используется как 'ВВП'.")
                                 break
-                    
                     # Если не нашли подходящую числовую колонку, создаем случайные данные
-                    if 'ВВП (в текущих ценах)' not in df.columns:
-                        df['ВВП (в текущих ценах)'] = np.random.randint(1000000, 10000000, len(df))
+                    if 'ВВП' not in df.columns:
+                        df['ВВП'] = np.random.randint(1000000, 10000000, len(df))
                         print("Колонка 'ВВП' не найдена. Созданы случайные данные для демонстрации.")
                 elif req_col == 'Численность безработных':
                     df[req_col] = np.random.randint(3000, 6000, len(df))
@@ -174,7 +173,7 @@ def prepare_data(df: pd.DataFrame, age_groups: Optional[List[str]] = None) -> Tu
             col_str = str(col)
             
             # Игнорируем обязательные колонки
-            if col_str in ['Год', 'ВВП (в текущих ценах)', 'Численность безработных']:
+            if col_str in ['Год', 'ВВП', 'Численность безработных']:
                 continue
                 
             # Проверяем, содержит ли название колонки возрастной диапазон
@@ -235,7 +234,7 @@ def prepare_data(df: pd.DataFrame, age_groups: Optional[List[str]] = None) -> Tu
         print(f"Модель 'combined' использует фиктивные данные и безработицу: {list(X_combined.columns)}")
     
     # Целевая переменная для всех моделей
-    y = df['ВВП (в текущих ценах)']
+    y = df['ВВП']
     
     # Проверяем, что все DataFrame созданы корректно
     assert isinstance(X_all_groups, pd.DataFrame), "X_all_groups должен быть DataFrame"

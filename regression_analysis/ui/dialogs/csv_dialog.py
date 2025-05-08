@@ -557,7 +557,7 @@ class CSVSettingsDialog:
             elif ('ввп' in col_str or 'vvp' in col_str or 'gdp' in col_str or 
                   'валов' in col_str or 'врп' in col_str or 'валовой' in col_str or 
                   'продукт' in col_str):
-                column_mapping[col] = 'ВВП (в текущих ценах)'
+                column_mapping[col] = 'ВВП'
             
             # Для безработицы - расширяем поиск
             elif ('безраб' in col_str or 'unemploy' in col_str or 'безроб' in col_str or
@@ -588,11 +588,11 @@ class CSVSettingsDialog:
         
         # Находим колонку ВВП (если пользователь указал)
         gdp_col_pattern = self.gdp_var.get().lower()
-        if gdp_col_pattern and 'ВВП (в текущих ценах)' not in self.df.columns:
+        if gdp_col_pattern and 'ВВП' not in self.df.columns:
             for col in self.df.columns:
                 col_str = str(col).lower()
                 if gdp_col_pattern in col_str or col_str == gdp_col_pattern:
-                    user_column_mapping[col] = 'ВВП (в текущих ценах)'
+                    user_column_mapping[col] = 'ВВП'
                     break
         
         # Находим колонку безработицы (если пользователь указал)
@@ -615,22 +615,21 @@ class CSVSettingsDialog:
             self.df['Год'] = range(2000, 2000 + len(self.df))
             logger.warning("Колонка 'Год' не найдена. Создана последовательность лет, начиная с 2000.")
         
-        if 'ВВП (в текущих ценах)' not in self.df.columns:
+        if 'ВВП' not in self.df.columns:
             # Ищем подходящую числовую колонку для ВВП
             numeric_cols = self.df.select_dtypes(include=[np.number]).columns
             if len(numeric_cols) > 0:
                 # Выбираем первую числовую колонку, которая не Год и не входит в возрастные группы
                 for col in numeric_cols:
                     if col != 'Год' and col not in self.age_groups:
-                        self.df['ВВП (в текущих ценах)'] = self.df[col]
+                        self.df['ВВП'] = self.df[col]
                         logger.info(f"Колонка '{col}' используется как 'ВВП'.")
                         break
             
             # Если всё еще нет колонки ВВП, создаем фиктивную
-            # Если всё еще нет колонки ВВП, создаем фиктивную
-            if 'ВВП (в текущих ценах)' not in self.df.columns:
-                self.df['ВВП (в текущих ценах)'] = np.random.randint(1000000, 10000000, len(self.df))
-                logger.warning("Колонка 'ВВП (в текущих ценах)' не найдена. Созданы случайные данные для демонстрации.")
+            if 'ВВП' not in self.df.columns:
+                self.df['ВВП'] = np.random.randint(1000000, 10000000, len(self.df))
+                logger.warning("Колонка 'ВВП' не найдена. Созданы случайные данные для демонстрации.")
         
         if 'Численность безработных' not in self.df.columns:
             # Ищем подходящую числовую колонку для безработицы
@@ -638,7 +637,7 @@ class CSVSettingsDialog:
             if len(numeric_cols) > 0:
                 # Перебираем числовые колонки, которые еще не использованы
                 for col in numeric_cols:
-                    if (col != 'Год' and col != 'ВВП (в текущих ценах)' and 
+                    if (col != 'Год' and col != 'ВВП' and 
                         col not in self.age_groups):
                         self.df['Численность безработных'] = self.df[col]
                         logger.info(f"Колонка '{col}' используется как 'Численность безработных'.")
@@ -656,7 +655,7 @@ class CSVSettingsDialog:
             for col in self.df.columns:
                 col_str = str(col)
                 if (age_pattern.search(col_str) and 
-                    col not in ['Год', 'ВВП (в текущих ценах)', 'Численность безработных']):
+                    col not in ['Год', 'ВВП', 'Численность безработных']):
                     self.age_groups.append(col)
                     logger.debug(f"Найдена возрастная группа: {col}")
         
@@ -684,7 +683,7 @@ class CSVSettingsDialog:
                 self.df['Год'] = range(2000, 2000 + len(self.df))
         
         # Удаляем строки с пропущенными значениями в обязательных колонках
-        self.df = self.df.dropna(subset=['Год', 'ВВП (в текущих ценах)'])
+        self.df = self.df.dropna(subset=['Год', 'ВВП'])
         
         # Сортируем по годам
         if 'Год' in self.df.columns:
@@ -718,7 +717,7 @@ class CSVSettingsDialog:
             
             for col in self.df.columns:
                 col_str = str(col)
-                if age_pattern.search(col_str) and col not in ['Год', 'ВВП (в текущих ценах)', 
+                if age_pattern.search(col_str) and col not in ['Год', 'ВВП', 
                                                              'Численность безработных',
                                                              'Численность рабочих, в том числе в возрасте, лет']:
                     age_groups.append(col)
@@ -766,7 +765,7 @@ class CSVSettingsDialog:
             # Проверяем, соответствует ли колонка префиксу/паттерну
             if age_prefix in col_str or col_str.lower().find(age_prefix.lower()) >= 0:
                 # Исключаем обязательные колонки
-                if col_str not in ['Год', 'ВВП (в текущих ценах)', 'Численность безработных', 'Численность рабочих, в том числе в возрасте, лет']:
+                if col_str not in ['Год', 'ВВП', 'Численность безработных', 'Численность рабочих, в том числе в возрасте, лет']:
                     matching_cols.append(col)
         
         return matching_cols
@@ -841,7 +840,7 @@ class CSVSettingsDialog:
             # Создаем фиктивную колонку с соответствующими данными
             if column_name == 'Год':
                 self.df[column_name] = range(2000, 2000 + len(self.df))
-            elif column_name == 'ВВП (в текущих ценах)':
+            elif column_name == 'ВВП':
                 self.df[column_name] = np.random.randint(1000000, 10000000, len(self.df))
             elif column_name == 'Численность безработных':
                 self.df[column_name] = np.random.randint(3000, 6000, len(self.df))
@@ -866,7 +865,7 @@ class CSVSettingsDialog:
         select_button.pack(side=tk.LEFT, padx=10)
         
         # Кнопка пропуска или создания фиктивной только для необязательных колонок
-        if column_name != 'Год' and column_name != 'ВВП (в текущих ценах)':
+        if column_name != 'Год' and column_name != 'ВВП':
             skip_button = tk.Button(button_frame, text="Пропустить", command=on_skip,
                                 bg=DARK_THEME['bg_light'], fg=DARK_THEME['neutral'],
                                 activebackground=DARK_THEME['accent'], 
