@@ -63,6 +63,9 @@ class GraphViewer:
         self.y_pred = y_pred
         self.model_type = model_type
         
+        self.canvas = None  # Добавим ссылку на canvas для последующего уничтожения
+        self.window.protocol("WM_DELETE_WINDOW", self.on_close)  # Обработчик закрытия окна
+        
         self.setup_ui()
     
     def setup_ui(self):
@@ -107,15 +110,15 @@ class GraphViewer:
                 spine.set_color(DARK_THEME['neutral'])
         
         # Встраиваем график в окно Tkinter
-        canvas = FigureCanvasTkAgg(fig, graph_frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        self.canvas = FigureCanvasTkAgg(fig, graph_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
         # Добавляем панель инструментов matplotlib с темным стилем
         toolbar_frame = tk.Frame(graph_frame, bg=DARK_THEME['primary'])
         toolbar_frame.pack(fill=tk.X)
         
-        toolbar = RussianNavigationToolbar(canvas, toolbar_frame, theme=DARK_THEME)
+        toolbar = RussianNavigationToolbar(self.canvas, toolbar_frame, theme=DARK_THEME)
         toolbar.update()
         toolbar.pack(side=tk.BOTTOM, fill=tk.X)
         
@@ -189,7 +192,7 @@ class GraphViewer:
             fg=DARK_THEME['neutral'],
             activebackground=DARK_THEME['accent'],
             activeforeground=DARK_THEME['text_light'],
-            command=self.window.destroy
+            command=self.on_close
         )
         back_button.pack(side=tk.RIGHT, padx=10)
     
@@ -606,16 +609,37 @@ class GraphViewer:
             graph_frame.pack(fill=tk.BOTH, expand=True)
             
             # Встраиваем новый график
-            canvas = FigureCanvasTkAgg(fig, graph_frame)
-            canvas.draw()
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            self.canvas = FigureCanvasTkAgg(fig, graph_frame)
+            self.canvas.draw()
+            self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
             
             # Добавляем панель инструментов с темным стилем
             toolbar_frame = tk.Frame(graph_frame, bg=DARK_THEME['primary'])
             toolbar_frame.pack(fill=tk.X)
             
-            toolbar = RussianNavigationToolbar(canvas, toolbar_frame, theme=DARK_THEME)
+            toolbar = RussianNavigationToolbar(self.canvas, toolbar_frame, theme=DARK_THEME)
             toolbar.update()
             
         except Exception as e:
             messagebox.showerror("Ошибка", f"Не удалось обновить график:\n{str(e)}")
+    
+    def on_close(self):
+        """Корректно уничтожает окно графика и связанные ресурсы."""
+        try:
+            if self.canvas is not None:
+                self.canvas.get_tk_widget().destroy()
+                self.canvas.figure.clf()
+                plt.close(self.canvas.figure)
+                self.canvas = None
+            if hasattr(self, 'fig') and self.fig is not None:
+                plt.close(self.fig)
+                self.fig = None
+            plt.close('all')  # Полная очистка всех окон matplotlib
+        except Exception:
+            pass
+        try:
+            self.window.destroy()
+            self.window = None
+            del self.window
+        except Exception:
+            pass

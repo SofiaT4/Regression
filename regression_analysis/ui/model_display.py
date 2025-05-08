@@ -1080,9 +1080,14 @@ class ModelDisplayFrame(tk.Frame):
         Parameters:
         graph_index (int): Индекс типа графика (0-3)
         """
-        # Закрываем предыдущее окно с графиком, если оно открыто
-        if self.graph_window and self.graph_window.winfo_exists():
-            self.graph_window.destroy()
+        # Корректно закрываем предыдущее окно с графиком, если оно открыто
+        if self.graph_window is not None:
+            try:
+                if hasattr(self.graph_window, 'window') and self.graph_window.window.winfo_exists():
+                    self.graph_window.on_close()
+            except Exception:
+                pass
+            self.graph_window = None
         
         # Получаем данные для текущей модели
         X = getattr(self, f'X_{self.current_model}')
@@ -1090,8 +1095,8 @@ class ModelDisplayFrame(tk.Frame):
         model = self.models[self.current_model]
         y_pred = self.predictions[self.current_model]
         
-        # Создаем новое окно с графиком
-        GraphViewer(self.parent, graph_index, self.df, X, y, model, y_pred, self.current_model)
+        # Создаем новое окно с графиком и сохраняем ссылку
+        self.graph_window = GraphViewer(self.parent, graph_index, self.df, X, y, model, y_pred, self.current_model)
     
     def populate_comparison_table(self):
         """Заполняет таблицу сравнения моделей расширенным набором показателей."""
