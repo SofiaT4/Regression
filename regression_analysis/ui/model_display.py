@@ -227,6 +227,14 @@ class ModelDisplayFrame(tk.Frame):
         self.setup_statistics_tab()
         self.setup_graphs_tab()
         self.setup_dependencies_tab()
+        # Добавляю обработку прокрутки колесом мыши для глобального скроллбара
+        self.enable_global_mousewheel_scroll()
+    
+    def enable_global_mousewheel_scroll(self):
+        """Включает прокрутку содержимого окна колесом мыши через canvas."""
+        def _on_mousewheel(event):
+            self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
     
     def update_scrollregion(self, event):
         """Обновляет регион прокрутки при изменении содержимого."""
@@ -1365,127 +1373,12 @@ class ModelDisplayFrame(tk.Frame):
             toolbar.update()
             toolbar.pack(side=tk.BOTTOM, fill=tk.X)
             
-            # Добавляем таблицу качества моделей
-            table_frame = tk.Frame(comparison_window, padx=10, pady=5, bg=DARK_THEME['primary'])
-            table_frame.pack(fill=tk.X)
-            
-            tk.Label(table_frame, text="Качество моделей:", 
-                    font=("Arial", 12, "bold"), 
-                    bg=DARK_THEME['primary'],
-                    fg=DARK_THEME['neutral']).pack(anchor=tk.W, pady=5)
-            
-            # Создаем таблицу
-            table = ttk.Treeview(
-                table_frame, 
-                columns=("1", "2", "3", "4"), 
-                show="headings", 
-                height=3
-            )
-            
-            table.heading("1", text="Метрика")
-            table.heading("2", text="Модель от численности рабочих")
-            table.heading("3", text="Модель от безработицы")
-            table.heading("4", text="Комбинированная модель")
-            
-            table.column("1", width=150, anchor=tk.W, stretch=True)
-            table.column("2", width=200, anchor=tk.CENTER, stretch=True)
-            table.column("3", width=200, anchor=tk.CENTER, stretch=True)
-            table.column("4", width=200, anchor=tk.CENTER, stretch=True)
-            
-            # Применяем стили темной темы к таблице
-            style_treeview_tags(table)
-            
-            # Заполняем таблицу
-            metrics = [
-                ("R-квадрат", "r2"),
-                ("Скорректированный R-квадрат", "adjusted_r2"),
-                ("Стандартная ошибка", "se_regression")
-            ]
-            
-            for metric_name, metric_key in metrics:
-                row_values = [metric_name]
-                
-                for model_type in ['all_groups', 'unemployed', 'combined']:
-                    if model_type in self.stats_dict:
-                        value = self.stats_dict[model_type].get(metric_key, "—")
-                        if isinstance(value, (int, float)):
-                            row_values.append(f"{value:.6f}")
-                        else:
-                            row_values.append(str(value))
-                    else:
-                        row_values.append("—")
-                
-                table.insert("", "end", values=tuple(row_values))
-            
-            table.pack(fill=tk.X, padx=5, pady=5)
-            
-            # Кнопка закрытия
-            button_frame = tk.Frame(comparison_window, pady=5, bg=DARK_THEME['primary'])
-            button_frame.pack(fill=tk.X)
-            
-            close_button = tk.Button(
-                button_frame, 
-                text="Закрыть", 
-                command=comparison_window.destroy,
-                font=("Arial", 12),
-                bg=DARK_THEME['bg_light'],
-                fg=DARK_THEME['neutral'],
-                activebackground=DARK_THEME['accent'],
-                activeforeground=DARK_THEME['text_light']
-            )
-            close_button.pack(side=tk.RIGHT, padx=10)
-            
-            # Кнопка экспорта
-            export_button = tk.Button(
-                button_frame, 
-                text="Экспортировать сравнение", 
-                command=lambda: self.export_comparison(fig),
-                font=("Arial", 12),
-                bg=DARK_THEME['bg_light'],
-                fg=DARK_THEME['neutral'],
-                activebackground=DARK_THEME['accent'],
-                activeforeground=DARK_THEME['text_light']
-            )
-            export_button.pack(side=tk.LEFT, padx=10)
-            
         except Exception as e:
             # В случае ошибки показываем сообщение
             tk.Label(frame, text=f"Ошибка при создании графика: {str(e)}", 
                     font=("Arial", 12), fg=DARK_THEME['error'],
                     bg=DARK_THEME['primary']).pack(pady=20)
             
-            # Кнопка закрытия
-            tk.Button(
-                frame, 
-                text="Закрыть", 
-                command=comparison_window.destroy,
-                font=("Arial", 12),
-                bg=DARK_THEME['bg_light'],
-                fg=DARK_THEME['neutral'],
-                activebackground=DARK_THEME['accent'],
-                activeforeground=DARK_THEME['text_light']
-            ).pack(pady=10)
-            
-    def export_comparison(self, fig):
-        """
-        Экспортирует сравнение моделей в PDF.
-        
-        Parameters:
-        fig (Figure): Объект фигуры matplotlib
-        """
-        file_path = filedialog.asksaveasfilename(
-            defaultextension=".pdf",
-            filetypes=[("PDF файлы", "*.pdf"), ("Все файлы", "*.*")],
-            title="Экспортировать сравнение моделей"
-        )
-        
-        if file_path:
-            try:
-                fig.savefig(file_path, dpi=300, bbox_inches='tight')
-                messagebox.showinfo("Экспорт", f"Сравнение моделей экспортировано в файл:\n{file_path}")
-            except Exception as e:
-                messagebox.showerror("Ошибка", f"Ошибка при экспорте сравнения:\n{str(e)}")
-                
     def handle_back_button(self):
         """Handle the back button press by properly cleaning up before calling back_callback."""
         # First destroy this frame properly
