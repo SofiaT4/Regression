@@ -55,6 +55,7 @@ class CSVSettingsDialog:
         apply_theme(self.window)
         
         self.window.grab_set()  # Делаем окно модальным
+        self.window.protocol("WM_DELETE_WINDOW", self.confirm_exit)
         
         # Сохраняем текущие настройки для повторного использования
         self.current_settings = {
@@ -884,9 +885,57 @@ class CSVSettingsDialog:
         self.window.attributes('-fullscreen', not self.window.attributes('-fullscreen'))
 
     def confirm_exit(self):
-        """Обработчик события нажатия на кнопку выхода."""
-        # Показываем диалог подтверждения выхода
-        response = messagebox.askyesno("Подтверждение выхода", "Вы уверены, что хотите выйти без сохранения изменений?")
-        if response:
-            import sys
-            sys.exit(0)  # Полное завершение приложения
+        from ui.components.theme_manager import DARK_THEME, apply_theme
+        import tkinter as tk
+        from ui.components.ui_helpers import center_window
+
+        confirm_dialog = tk.Toplevel(self.window)
+        confirm_dialog.title("Подтверждение выхода")
+        confirm_dialog.attributes('-topmost', True)
+        confirm_dialog.geometry("500x180")  # Увеличенная ширина и высота
+        confirm_dialog.resizable(False, False)
+        apply_theme(confirm_dialog)
+        center_window(confirm_dialog, 500, 180)
+        confirm_dialog.grab_set()
+        confirm_dialog.focus_set()
+
+        tk.Label(
+            confirm_dialog,
+            text="Вы уверены, что хотите выйти без сохранения изменений?",
+            font=("Arial", 12, "bold"),
+            bg=DARK_THEME['primary'],
+            fg=DARK_THEME['neutral'],
+            wraplength=450,
+            justify="center"
+        ).pack(pady=20)
+
+        button_frame = tk.Frame(confirm_dialog, bg=DARK_THEME['primary'])
+        button_frame.pack(pady=15)
+
+        def do_exit():
+            confirm_dialog.destroy()
+            self.window.destroy()
+
+        tk.Button(
+            button_frame,
+            text="Да",
+            width=10,
+            font=("Arial", 11),
+            bg=DARK_THEME['error'],
+            fg=DARK_THEME['text_light'],
+            activebackground=DARK_THEME['bg_light'],
+            activeforeground=DARK_THEME['neutral'],
+            command=do_exit
+        ).pack(side=tk.LEFT, padx=10)
+
+        tk.Button(
+            button_frame,
+            text="Нет",
+            width=10,
+            font=("Arial", 11),
+            bg=DARK_THEME['bg_light'],
+            fg=DARK_THEME['neutral'],
+            activebackground=DARK_THEME['accent'],
+            activeforeground=DARK_THEME['text_light'],
+            command=confirm_dialog.destroy
+        ).pack(side=tk.LEFT, padx=10)

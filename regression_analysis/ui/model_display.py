@@ -1422,12 +1422,55 @@ class ModelDisplayFrame(tk.Frame):
         self.dependency_viewer.pack(fill=tk.BOTH, expand=True)
 
     def confirm_exit(self):
-        """Отображает диалог подтверждения выхода и обрабатывает ответ."""
-        from tkinter import messagebox
-        
-        # Показываем диалог подтверждения
-        response = messagebox.askyesno("Подтверждение выхода", "Вы действительно хотите выйти?")
-        
-        if response:
-            # Если пользователь подтвердил выход, завершаем приложение
-            sys.exit(0)  # Полное завершение приложения
+        from ui.components.theme_manager import DARK_THEME, apply_theme
+        import tkinter as tk
+        import sys
+        from ui.components.ui_helpers import center_window
+
+        confirm_dialog = tk.Toplevel(self.master if hasattr(self, 'master') else self.root)
+        confirm_dialog.title("Подтверждение выхода")
+        confirm_dialog.attributes('-topmost', True)
+        confirm_dialog.geometry("350x150")
+        confirm_dialog.resizable(False, False)
+        apply_theme(confirm_dialog)
+        center_window(confirm_dialog, 350, 150)
+        confirm_dialog.grab_set()
+        confirm_dialog.focus_set()
+
+        tk.Label(
+            confirm_dialog,
+            text="Вы действительно хотите выйти?",
+            font=("Arial", 12, "bold"),
+            bg=DARK_THEME['primary'],
+            fg=DARK_THEME['neutral']
+        ).pack(pady=20)
+
+        button_frame = tk.Frame(confirm_dialog, bg=DARK_THEME['primary'])
+        button_frame.pack(pady=15)
+
+        def do_exit():
+            sys.exit(0)
+
+        tk.Button(
+            button_frame,
+            text="Да",
+            width=10,
+            font=("Arial", 11),
+            bg=DARK_THEME['error'],
+            fg=DARK_THEME['text_light'],
+            activebackground=DARK_THEME['bg_light'],
+            activeforeground=DARK_THEME['neutral'],
+            command=do_exit
+        ).pack(side=tk.LEFT, padx=10)
+
+        tk.Button(
+            button_frame,
+            text="Нет",
+            width=10,
+            font=("Arial", 11),
+            bg=DARK_THEME['bg_light'],
+            fg=DARK_THEME['neutral'],
+            activebackground=DARK_THEME['accent'],
+            activeforeground=DARK_THEME['text_light'],
+            command=confirm_dialog.destroy
+        ).pack(side=tk.LEFT, padx=10)

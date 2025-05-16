@@ -15,12 +15,11 @@ from datetime import datetime
 # Добавляем корневую директорию проекта в путь для импорта
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Настраиваем логирование
+# Настраиваем логирование только в консоль (без файлов)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(f"regression_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"),
         logging.StreamHandler()
     ]
 )
@@ -41,22 +40,47 @@ def patch_subplot_tool():
     import matplotlib
     from matplotlib.widgets import SubplotTool
     import tkinter as tk
+    from tkinter import ttk
 
     orig_init = SubplotTool.__init__
 
     def russian_init(self, *args, **kwargs):
         orig_init(self, *args, **kwargs)
-        # Получаем ссылку на окно
         toolfig = getattr(self, 'toolfig', None)
         if toolfig is None:
             toolfig = getattr(self, '_toolfig', None)
-        # Заголовок окна
         if toolfig is not None:
             toolfig.wm_title("Настройка подграфиков")
-            # Инструкция
             for widget in toolfig.winfo_children():
                 if isinstance(widget, tk.Label) and "Click on slider" in widget.cget("text"):
                     widget.config(text="Щелкните на ползунке для настройки параметров графика")
+            # Стилизуем кнопку Reset (ищем рекурсивно)
+            try:
+                from ui.components.theme_manager import DARK_THEME
+                def style_reset_button(widget):
+                    # Для tk.Button
+                    if isinstance(widget, tk.Button) and widget.cget("text") == "Reset":
+                        widget.config(
+                            bg=DARK_THEME['error'],
+                            fg=DARK_THEME['text_light'],
+                            activebackground=DARK_THEME['bg_light'],
+                            activeforeground=DARK_THEME['neutral']
+                        )
+                    # Для ttk.Button
+                    if isinstance(widget, ttk.Button) and widget.cget("text") == "Reset":
+                        style = ttk.Style()
+                        style.configure("Red.TButton",
+                            background=DARK_THEME['error'],
+                            foreground=DARK_THEME['text_light']
+                        )
+                        widget.config(style="Red.TButton")
+                    # Рекурсивно для всех дочерних
+                    if hasattr(widget, 'winfo_children'):
+                        for child in widget.winfo_children():
+                            style_reset_button(child)
+                style_reset_button(toolfig)
+            except Exception as e:
+                pass
 
     SubplotTool.__init__ = russian_init
 

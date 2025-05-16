@@ -17,3 +17,19 @@ __pycache__/
 # Игнорировать системные файлы
 .DS_Store
 Thumbs.db
+
+# Build artifacts and temporary files
+build/
+dist/
+*.spec
+*.exe
+*.pkg
+*.pyz
+*.toc
+*.zip
+*.txt
+*.html
+
+# Если иконка — исходник, не игнорируйте её!
+# Если иконка появляется только после сборки, добавьте её сюда по имени
+*.ico
