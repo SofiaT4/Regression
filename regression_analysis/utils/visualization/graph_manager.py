@@ -185,6 +185,14 @@ def create_actual_predicted_plot(
     # Строим графики
     ax.plot(years, y, marker='o', color=actual_color, linewidth=2, markersize=6, label='Фактический ВВП')
     ax.plot(years, y_pred, linestyle='--', color=predicted_color, linewidth=2, label='Прогнозируемый ВВП')
+
+    # Явно задаем xticks и xticklabels для целых годов
+    if hasattr(years, 'min') and hasattr(years, 'max'):
+        year_list = list(range(int(years.min()), int(years.max()) + 1))
+    else:
+        year_list = list(sorted(set(int(y) for y in years)))
+    ax.set_xticks(year_list)
+    ax.set_xticklabels([str(y) for y in year_list])
     
     # Заголовок с R²
     ax.set_title(f'Фактический и прогнозируемый ВВП (модель от {model_names[model_type]})\nR² = {r2:.4f}', 
@@ -301,6 +309,14 @@ def create_actual_predicted_plot(
     for spine in ax.spines.values():
         spine.set_color(DARK_THEME['neutral'])
     
+    # Явно задаем xticks и xticklabels для целых годов
+    if hasattr(years, 'min') and hasattr(years, 'max'):
+        year_list = list(range(int(years.min()), int(years.max()) + 1))
+    else:
+        year_list = list(sorted(set(int(y) for y in years)))
+    ax.set_xticks(year_list)
+    ax.set_xticklabels([str(y) for y in year_list])
+    
     return fig
 
 def format_coef(coef):
@@ -319,135 +335,6 @@ def format_coef(coef):
         return f"{coef:.6f}"
     else:
         return f"{coef:.4f}"
-
-def format_coef(coef):
-    """
-    Форматирует коэффициент для отображения в уравнении.
-    
-    Parameters:
-    coef (float): Значение коэффициента
-    
-    Returns:
-    str: Отформатированное значение
-    """
-    if abs(coef) >= 1000000:
-        return f"{coef:.2E}".replace('E+0', 'E+')
-    elif abs(coef) < 0.001 and coef != 0:
-        return f"{coef:.6f}"
-    else:
-        return f"{coef:.4f}"
-
-def format_coef(coef):
-    """
-    Форматирует коэффициент для отображения в уравнении.
-    
-    Parameters:
-    coef (float): Значение коэффициента
-    
-    Returns:
-    str: Отформатированное значение
-    """
-    if abs(coef) >= 1000000:
-        return f"{coef:.2E}".replace('E+0', 'E+')
-    else:
-        return f"{coef:.4f}"
-
-def create_graph(
-    graph_index: int, 
-    df: pd.DataFrame, 
-    X: Union[pd.DataFrame, np.ndarray], 
-    y: Union[pd.Series, np.ndarray], 
-    model: LinearRegression, 
-    y_pred: np.ndarray, 
-    model_type: str,
-    **kwargs
-) -> Figure:
-    """
-    Создает график на основе индекса типа графика и типа модели.
-    
-    Parameters:
-    graph_index (int): Индекс типа графика
-    df (pandas.DataFrame): Датафрейм с данными
-    X (pandas.DataFrame or numpy.ndarray): Признаки модели
-    y (pandas.Series or numpy.ndarray): Целевая переменная
-    model (LinearRegression): Обученная модель регрессии
-    y_pred (numpy.ndarray): Предсказанные значения
-    model_type (str): Тип модели ('all_groups', 'unemployed', 'combined')
-    **kwargs: Дополнительные параметры для настройки графика
-    
-    Returns:
-    Figure: Объект фигуры matplotlib
-    """
-    logger.info(f"Создание графика типа {graph_index} для модели {model_type}")
-    
-    # Создаем общий стиль для всех графиков
-    plt.rcParams['font.family'] = 'DejaVu Sans'
-    plt.rcParams['axes.facecolor'] = '#f8f9fa'
-    plt.rcParams['axes.grid'] = True
-    plt.rcParams['grid.color'] = '#cccccc'
-    plt.rcParams['grid.linestyle'] = '--'
-    plt.rcParams['grid.alpha'] = 0.7
-    
-    fig = Figure(figsize=(10, 6), dpi=100, facecolor='#ffffff')
-    
-    # Форматируем уравнение регрессии для отображения
-    coefficients = [model.intercept_]
-    coefficients.extend(model.coef_)
-    
-    # Форматируем уравнение в научной нотации если нужно
-    def format_coef(coef):
-        if abs(coef) >= 1000000:
-            return f"{coef:.2E}".replace('E+0', 'E+')
-        else:
-            return f"{coef:.4f}"
-    
-    # Названия моделей для заголовков
-    model_names = {
-        'all_groups': 'численности рабочих',
-        'unemployed': 'безработицы',
-        'combined': 'численности рабочих и безработицы'
-    }
-    
-    # Проверяем, что колонка с годом существует
-    if 'Год' not in df.columns:
-        # Создаем последовательность лет, начиная с 2000 года
-        years = range(2000, 2000 + len(df))
-        x_label = 'Порядковый номер наблюдения'
-    else:
-        years = df['Год']
-        x_label = 'Год'
-    
-    try:
-        if graph_index == 0:
-            # Фактический и прогнозируемый ВВП
-            fig = create_actual_predicted_plot(fig, years, y, y_pred, model_type, model_names, 
-                                            coefficients, x_label, X)  # Передаем X в функцию
-            
-        elif graph_index == 1:
-            # Визуализация коэффициентов модели
-            max_features = kwargs.get('max_features', None)
-            horizontal = kwargs.get('horizontal', True)
-            fig = create_coefficients_plot(fig, X, model, model_type, horizontal, max_features)
-            
-        elif graph_index == 2:
-            # График остатков
-            fig = create_residuals_plot(fig, years, y, y_pred, model_type, model_names)
-            
-        else:  # graph_index == 3
-            # Динамика показателей
-            selected_features = kwargs.get('selected_features', None)
-            fig = create_dynamics_plot(fig, years, y, X, model_type, model_names, selected_features)
-    
-    except Exception as e:
-        logger.error(f"Ошибка при создании графика {graph_index}: {str(e)}")
-        # В случае ошибки создаем пустой график с сообщением об ошибке
-        ax = fig.add_subplot(111)
-        ax.text(0.5, 0.5, f"Ошибка при создании графика:\n{str(e)}", 
-               ha='center', va='center', fontsize=12, color='red')
-        ax.axis('off')
-    
-    fig.tight_layout()
-    return fig
 
 def create_coefficients_plot(
     fig: Figure, 
@@ -815,6 +702,14 @@ def create_dynamics_plot(
     
     for spine in ax.spines.values():
         spine.set_color(DARK_THEME['neutral'])
+    
+    # Явно задаем xticks и xticklabels для целых годов
+    if hasattr(years, 'min') and hasattr(years, 'max'):
+        year_list = list(range(int(years.min()), int(years.max()) + 1))
+    else:
+        year_list = list(sorted(set(int(y) for y in years)))
+    ax.set_xticks(year_list)
+    ax.set_xticklabels([str(y) for y in year_list])
     
     return fig
 

@@ -1332,6 +1332,14 @@ class ModelDisplayFrame(tk.Frame):
                     ax.plot(years, self.predictions[model_type], linestyle='--', 
                         color=color, linewidth=2, label=model_names_ru.get(model_type, model_type))
             
+            # Явно задаем xticks и xticklabels для целых годов
+            if hasattr(years, 'min') and hasattr(years, 'max'):
+                year_list = list(range(int(years.min()), int(years.max()) + 1))
+            else:
+                year_list = list(sorted(set(int(y) for y in years)))
+            ax.set_xticks(year_list)
+            ax.set_xticklabels([str(y) for y in year_list])
+
             # Настраиваем график
             ax.set_title('Сравнение предсказаний моделей', fontsize=14, pad=20, color=DARK_THEME['neutral'])
             ax.set_xlabel('Год', fontsize=12, labelpad=10, color=DARK_THEME['neutral'])

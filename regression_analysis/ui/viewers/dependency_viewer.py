@@ -523,13 +523,18 @@ class DependencyViewer(ttk.Frame):
                     return
                 import numpy as np
                 from sklearn.metrics import r2_score
+                from sklearn.linear_model import LinearRegression
                 X = self.df[selected_features]
                 y = self.y
                 if len(selected_features) == 1:
                     x = X[selected_features[0]]
                     coef = np.polyfit(x, y, 1)
                     poly1d_fn = np.poly1d(coef)
-                    y_pred = poly1d_fn(x)
+                    # R^2 по LinearRegression
+                    lr = LinearRegression()
+                    X_reshaped = x.values.reshape(-1, 1)
+                    lr.fit(X_reshaped, y)
+                    y_pred = lr.predict(X_reshaped)
                     r2 = r2_score(y, y_pred)
                     sign = "положительный" if coef[0] > 0 else "отрицательный"
                     text = (
@@ -544,7 +549,11 @@ class DependencyViewer(ttk.Frame):
                     X_sum = X.sum(axis=1)
                     coef = np.polyfit(X_sum, y, 1)
                     poly1d_fn = np.poly1d(coef)
-                    y_pred = poly1d_fn(X_sum)
+                    # R^2 по LinearRegression
+                    lr = LinearRegression()
+                    X_reshaped = X.values
+                    lr.fit(X_reshaped, y)
+                    y_pred = lr.predict(X_reshaped)
                     r2 = r2_score(y, y_pred)
                     sign = "положительный" if coef[0] > 0 else "отрицательный"
                     features_str = ", ".join(selected_features)
@@ -563,12 +572,17 @@ class DependencyViewer(ttk.Frame):
                 # Интерпретация для scatter-графика
                 import numpy as np
                 from sklearn.metrics import r2_score
+                from sklearn.linear_model import LinearRegression
                 x_feature = self.x_var.get()
                 x = self.df[x_feature]
                 y = self.y
                 coef = np.polyfit(x, y, 1)
                 poly1d_fn = np.poly1d(coef)
-                y_pred = poly1d_fn(x)
+                # R^2 по LinearRegression
+                lr = LinearRegression()
+                X_reshaped = x.values.reshape(-1, 1)
+                lr.fit(X_reshaped, y)
+                y_pred = lr.predict(X_reshaped)
                 r2 = r2_score(y, y_pred)
                 sign = "положительный" if coef[0] > 0 else "отрицательный"
                 text = (

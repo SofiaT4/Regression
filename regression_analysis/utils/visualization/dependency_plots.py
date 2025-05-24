@@ -147,7 +147,15 @@ def create_scatter_plot(
                   verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
     
     # Добавляем R²
-    y_pred = poly1d_fn(x_data) if not fit_polynomial else model.predict(X)
+    if fit_polynomial:
+        y_pred = model.predict(X)
+    else:
+        # Используем LinearRegression для вычисления R²
+        from sklearn.linear_model import LinearRegression
+        lr = LinearRegression()
+        X_reshaped = x_data.values.reshape(-1, 1) if hasattr(x_data, 'values') else x_data.reshape(-1, 1)
+        lr.fit(X_reshaped, y_data)
+        y_pred = lr.predict(X_reshaped)
     r2 = r2_score(y_data, y_pred)
     ax.text(0.02, 0.89, f"R² = {r2:.3f}", transform=ax.transAxes, fontsize=10,
           verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
@@ -166,7 +174,18 @@ def create_scatter_plot(
     
     # Улучшаем внешний вид
     fig.tight_layout(pad=0.5)
-    
+
+    # Если по X выбраны года (целые, диапазон 1900-2100), явно задаем xticks/xticklabels
+    try:
+        x_arr = np.array(x_data)
+        if np.issubdtype(x_arr.dtype, np.integer) and x_arr.min() >= 1900 and x_arr.max() <= 2100:
+            year_list = list(range(int(x_arr.min()), int(x_arr.max()) + 1))
+            ax.set_xticks(year_list)
+            ax.set_xticklabels([str(y) for y in year_list], rotation=45, ha='right')
+            fig.subplots_adjust(bottom=0.18)
+    except Exception:
+        pass
+
     return fig
 
 def create_multi_scatter_plot(X, y, feature_names, target_name="GDP", fig=None, ax=None):
@@ -238,8 +257,36 @@ def create_multi_scatter_plot(X, y, feature_names, target_name="GDP", fig=None, 
         ax.text(0.05, 0.95, equation, transform=ax.transAxes, fontsize=10, 
                verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
     
+    # Добавляем R²
+    from sklearn.linear_model import LinearRegression
+    lr = LinearRegression()
+    if n_features == 1:
+        X_reshaped = X[feature_names[0]].values.reshape(-1, 1)
+    else:
+        X_reshaped = X[feature_names].values
+    lr.fit(X_reshaped, y)
+    y_pred = lr.predict(X_reshaped)
+    r2 = r2_score(y, y_pred)
+    ax.text(0.05, 0.89, f"R² = {r2:.3f}", transform=ax.transAxes, fontsize=10,
+          verticalalignment='top', bbox=dict(boxstyle='round', alpha=0.1))
+    
     # Улучшаем макет и уменьшаем отступы
     fig.tight_layout(pad=0.5)
+
+    # Если по X выбраны года (целые, диапазон 1900-2100), явно задаем xticks/xticklabels
+    try:
+        if n_features == 1:
+            x_arr = np.array(X[feature_names[0]])
+        else:
+            x_arr = np.array(X[feature_names].sum(axis=1))
+        if np.issubdtype(x_arr.dtype, np.integer) and x_arr.min() >= 1900 and x_arr.max() <= 2100:
+            year_list = list(range(int(x_arr.min()), int(x_arr.max()) + 1))
+            ax.set_xticks(year_list)
+            ax.set_xticklabels([str(y) for y in year_list], rotation=45, ha='right')
+            fig.subplots_adjust(bottom=0.18)
+    except Exception:
+        pass
+
     return fig
 
 def create_heatmap_plot(data, title="Корреляционная матрица", fig=None, ax=None):
